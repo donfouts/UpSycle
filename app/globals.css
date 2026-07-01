@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+/* ══════════════════════════════════════
+   DESIGN TOKENS
+   Ported from Sample/upsycle-market.html — do not redesign,
+   this palette/type system is the approved visual language.
+══════════════════════════════════════ */
+:root {
+  /* True rose gold palette matched to logo */
+  --rg-deep: #3d1f10;
+  --rg-mid: #b5622a;
+  --rg-core: #c8845a;
+  --rg-light: #e0a882;
+  --rg-pale: #f0c9a8;
+  --rg-grad: linear-gradient(
+    145deg,
+    #f0c9a8 0%,
+    #e0a882 18%,
+    #c8845a 38%,
+    #b5622a 58%,
+    #8a3e18 78%,
+    #c8845a 90%,
+    #f0c9a8 100%
+  );
+
+  --black: #080808;
+  --charcoal: #111111;
+  --deep: #181818;
+  --panel: #1e1e1e;
+  --panel2: #232323;
+  --border: rgba(200, 132, 90, 0.22);
+  --border2: rgba(240, 201, 168, 0.12);
+  --cream: #f5ede0;
+  --muted: rgba(245, 237, 224, 0.5);
+  --muted2: rgba(245, 237, 224, 0.72);
+  --success: #7aaa7a;
+
+  --font-serif-stack: var(--font-cormorant), Georgia, serif;
+  --font-sans-ui: var(--font-montserrat), system-ui, sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--black);
+  --color-foreground: var(--cream);
+  --font-serif: var(--font-serif-stack);
+  --font-sans: var(--font-sans-ui);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans-ui);
+  background: var(--black);
+  color: var(--cream);
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+}
+
+/* ══════════════════════════════════════
+   SHARED SECTION UTILITIES
+══════════════════════════════════════ */
+.sec-max {
+  max-width: 1140px;
+  margin: 0 auto;
+}
+
+.eyebrow {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--rg-core);
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.eyebrow::before {
+  content: "";
+  display: block;
+  width: 22px;
+  height: 1px;
+  background: var(--rg-core);
+  opacity: 0.6;
+}
+
+.sec-title {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 3.2vw, 3.2rem);
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  color: var(--cream);
+  margin-bottom: 20px;
+}
+.sec-title em {
+  font-style: italic;
+  background: var(--rg-grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.grad-text {
+  background: var(--rg-grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.btn-primary {
+  background: var(--rg-grad);
+  color: var(--black);
+  padding: 15px 38px;
+  font-family: var(--font-sans-ui);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  transition:
+    opacity 0.2s,
+    transform 0.15s;
+}
+.btn-primary:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--cream);
+  padding: 15px 38px;
+  font-family: var(--font-sans-ui);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: 1px solid rgba(200, 132, 90, 0.35);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.2s;
+}
+.btn-secondary:hover {
+  border-color: var(--rg-core);
+  color: var(--rg-light);
+}
+
+@media (max-width: 900px) {
+  section {
+    padding: 68px 20px;
+  }
+}
