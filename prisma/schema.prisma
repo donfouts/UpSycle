@@ -1,0 +1,272 @@
+// UpSycle — Prisma schema
+// Postgres (Amazon RDS) via Prisma ORM, per tech-stack-recommendation.md
+//
+// Scope: Phase 0 (issue #4) + Phase 1 field-level detail from mvp-build-plan.md.
+// Deliberately NOT modeled (Phase 2 backlog, do not block adding later):
+//   - subscription tiers (seller featured-placement ranking)
+//   - buyer<->seller product Q&A / messaging
+//   - buyer reviews on purchased items
+//   - "recommended items" personalization state
+//   - admin analytics dashboard aggregates (derivable from Order/Product/User via queries)
+//
+// Auth: Amazon Cognito owns credentials (passwords, OTP/password-reset flow, sessions).
+// This schema stores only a Cognito user id (`cognitoSub`) on User — no password field.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Users & roles
+// ---------------------------------------------------------------------------
+
+// Multi-role design rationale:
+// Requirement.MD is explicit that "user can hold multiple roles" (buyer/seller/admin
+// simultaneously). Modeling role as a single enum field on User would make holding
+// more than one role impossible (or require hacky combined enum values like
+// "BUYER_SELLER"). Instead we use a join table (UserRole) between User and a Role
+// enum, giving each user zero-to-many roles. SellerProfile is a separate 1:1 table
+// (not folded into User) because it only exists/is populated once a user takes on
+// the seller role and goes through vetting — keeping it separate avoids a wide User
+// table full of nullable seller-only columns and lets us attach an approval
+// workflow (pending/approved/suspended) that has no meaning for pure buyers.
+model User {
+  id         String   @id @default(uuid())
+  cognitoSub String   @unique // Cognito user pool "sub" — Cognito owns credentials
+  email      String   @unique
+  firstName  String?
+  lastName   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  roles         UserRole[]
+  addresses     Address[]
+  sellerProfile SellerProfile?
+  orders        Order[]        @relation("BuyerOrders")
+
+  referralsSent     SellerReferral[] @relation("ReferrerUser")
+  referralsReceived SellerReferral[] @relation("ReferralUser")
+
+  @@map("users")
+}
+
+enum Role {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+// Join table giving each User zero-to-many Roles (see rationale above).
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  role   Role
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@map("user_roles")
+}
+
+// ---------------------------------------------------------------------------
+// Seller vetting
+// ---------------------------------------------------------------------------
+
+enum SellerApprovalStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+}
+
+model SellerProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  websiteUrl           String?
+  socialMediaUrls      String[] // multiple social accounts allowed
+  expectedMonthlySales Int? // expected volume of sales per month
+  supplierList         String[] // e.g. "Home Depot", "Hobby Lobby"
+  approvalStatus       SellerApprovalStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  samplePhotos SellerSamplePhoto[]
+  products     Product[]
+  orderItems   OrderItem[]
+
+  @@map("seller_profiles")
+}
+
+// The 5 required sample product photos submitted at seller signup for vetting.
+model SellerSamplePhoto {
+  id              String   @id @default(uuid())
+  sellerProfileId String
+  url             String // S3 object URL/key
+  createdAt       DateTime @default(now())
+
+  sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
+  @@map("seller_sample_photos")
+}
+
+// Referral tracking: an existing seller (referrer) refers a new artisan (referral).
+// Kept minimal for Phase 0/1 (linkage only) — invite-email generation is Phase 2 #4.
+model SellerReferral {
+  id            String   @id @default(uuid())
+  referrerId    String // existing seller's User.id
+  referralId    String?  @unique // new artisan's User.id once they sign up (nullable until claimed)
+  referralEmail String // email the invite was addressed to
+  createdAt     DateTime @default(now())
+
+  referrer User  @relation("ReferrerUser", fields: [referrerId], references: [id], onDelete: Cascade)
+  referral User? @relation("ReferralUser", fields: [referralId], references: [id], onDelete: SetNull)
+
+  @@map("seller_referrals")
+}
+
+// ---------------------------------------------------------------------------
+// Addresses
+// ---------------------------------------------------------------------------
+
+model Address {
+  id         String  @id @default(uuid())
+  userId     String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postalCode String
+  country    String  @default("US")
+  isDefault  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ordersShipped Order[] @relation("ShippingAddress")
+
+  @@map("addresses")
+}
+
+// ---------------------------------------------------------------------------
+// Categories (self-referential tree)
+// ---------------------------------------------------------------------------
+
+// Matches: Jewelry>{necklace,earring,bracelet,other}, Clothing/Apparel>{women's,men's},
+// Home Goods>{blanket,pillow,kitchen}, Furniture>{dresser,table,chair,other}.
+// Self-referential parent/children keeps the tree data-driven (seeded) rather than
+// hardcoded, so future top-level categories or subcategories don't require a schema change.
+model Category {
+  id       String  @id @default(uuid())
+  name     String
+  slug     String  @unique
+  parentId String?
+
+  parent   Category?  @relation("CategoryToSubcategory", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryToSubcategory")
+  products Product[]
+
+  @@map("categories")
+}
+
+// ---------------------------------------------------------------------------
+// Products
+// ---------------------------------------------------------------------------
+
+model Product {
+  id              String @id @default(uuid())
+  sellerProfileId String
+  categoryId      String
+
+  title             String
+  description       String
+  priceCents        Int // price of item, stored as integer cents
+  shippingCostCents Int
+  dimensions        String? // free-form e.g. "10x8x4 in" — no fixed unit schema requested
+  weightGrams       Int?
+  inventoryCount    Int     @default(0)
+
+  proofOfHandcraftedUrl String // required proof-of-handcrafted upload (S3 key/URL)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sellerProfile SellerProfile  @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  category      Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  photos        ProductPhoto[]
+  orderItems    OrderItem[]
+
+  @@map("products")
+}
+
+// 2-6 product photos per listing (count enforced at the application layer).
+model ProductPhoto {
+  id        String   @id @default(uuid())
+  productId String
+  url       String // S3 object URL/key
+  position  Int      @default(0) // display order
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_photos")
+}
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+enum ShippingStatus {
+  PENDING_SHIPMENT
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model Order {
+  id                String @id @default(uuid())
+  buyerId           String
+  shippingAddressId String
+
+  shippingStatus   ShippingStatus @default(PENDING_SHIPMENT)
+  totalAmountCents Int
+  stripePaymentId  String? // Stripe Connect payment intent/charge reference
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  buyer           User        @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
+  shippingAddress Address     @relation("ShippingAddress", fields: [shippingAddressId], references: [id], onDelete: Restrict)
+  items           OrderItem[]
+
+  @@map("orders")
+}
+
+// Line item — links an Order to a Product (and denormalizes the seller for querying
+// "products sold this month" / "pending shipment" per seller without joining through
+// Product, which could later be edited/discontinued).
+model OrderItem {
+  id              String @id @default(uuid())
+  orderId         String
+  productId       String
+  sellerProfileId String
+
+  quantity          Int @default(1)
+  unitPriceCents    Int // price at time of purchase (snapshot, independent of later Product edits)
+  shippingCostCents Int
+
+  createdAt DateTime @default(now())
+
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Restrict)
+
+  @@map("order_items")
+}
