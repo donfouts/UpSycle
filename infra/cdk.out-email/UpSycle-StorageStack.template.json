@@ -1,0 +1,373 @@
+{
+ "Description": "UpSycle: S3 buckets (product photos, seller vetting photos) + CloudFront",
+ "Resources": {
+  "ProductPhotosBucketC3E952F6": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "CorsConfiguration": {
+     "CorsRules": [
+      {
+       "AllowedHeaders": [
+        "*"
+       ],
+       "AllowedMethods": [
+        "GET",
+        "PUT",
+        "POST"
+       ],
+       "AllowedOrigins": [
+        "https://UpSycleMarket.com",
+        "http://localhost:3000"
+       ]
+      }
+     ]
+    },
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 7
+       },
+       "Status": "Enabled"
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "Tags": [
+     {
+      "Key": "project",
+      "Value": "UpSycle"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "UpSycle-StorageStack/ProductPhotosBucket/Resource"
+   }
+  },
+  "ProductPhotosBucketPolicy24C4E315": {
+   "Type": "AWS::S3::BucketPolicy",
+   "Properties": {
+    "Bucket": {
+     "Ref": "ProductPhotosBucketC3E952F6"
+    },
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "s3:*",
+       "Condition": {
+        "Bool": {
+         "aws:SecureTransport": "false"
+        }
+       },
+       "Effect": "Deny",
+       "Principal": {
+        "AWS": "*"
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "ProductPhotosBucketC3E952F6",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "ProductPhotosBucketC3E952F6",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "s3:GetObject",
+       "Condition": {
+        "StringEquals": {
+         "AWS:SourceArn": {
+          "Fn::Join": [
+           "",
+           [
+            "arn:",
+            {
+             "Ref": "AWS::Partition"
+            },
+            ":cloudfront::",
+            {
+             "Ref": "AWS::AccountId"
+            },
+            ":distribution/",
+            {
+             "Ref": "ProductPhotosDistribution991688D7"
+            }
+           ]
+          ]
+         }
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "cloudfront.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Fn::GetAtt": [
+            "ProductPhotosBucketC3E952F6",
+            "Arn"
+           ]
+          },
+          "/*"
+         ]
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "UpSycle-StorageStack/ProductPhotosBucket/Policy/Resource"
+   }
+  },
+  "SellerVettingPhotosBucket14B77B1E": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 7
+       },
+       "Status": "Enabled"
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "Tags": [
+     {
+      "Key": "project",
+      "Value": "UpSycle"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "UpSycle-StorageStack/SellerVettingPhotosBucket/Resource"
+   }
+  },
+  "SellerVettingPhotosBucketPolicyE9AD6305": {
+   "Type": "AWS::S3::BucketPolicy",
+   "Properties": {
+    "Bucket": {
+     "Ref": "SellerVettingPhotosBucket14B77B1E"
+    },
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "s3:*",
+       "Condition": {
+        "Bool": {
+         "aws:SecureTransport": "false"
+        }
+       },
+       "Effect": "Deny",
+       "Principal": {
+        "AWS": "*"
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "SellerVettingPhotosBucket14B77B1E",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "SellerVettingPhotosBucket14B77B1E",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "UpSycle-StorageStack/SellerVettingPhotosBucket/Policy/Resource"
+   }
+  },
+  "ProductPhotosDistributionOrigin1S3OriginAccessControl9919CEE1": {
+   "Type": "AWS::CloudFront::OriginAccessControl",
+   "Properties": {
+    "OriginAccessControlConfig": {
+     "Name": "UpSycleStorageStackProductPhOrigin1S3OriginAccessControl528ED188",
+     "OriginAccessControlOriginType": "s3",
+     "SigningBehavior": "always",
+     "SigningProtocol": "sigv4"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "UpSycle-StorageStack/ProductPhotosDistribution/Origin1/S3OriginAccessControl/Resource"
+   }
+  },
+  "ProductPhotosDistribution991688D7": {
+   "Type": "AWS::CloudFront::Distribution",
+   "Properties": {
+    "DistributionConfig": {
+     "Comment": "UpSycle product photos CDN",
+     "DefaultCacheBehavior": {
+      "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+      "Compress": true,
+      "TargetOriginId": "UpSycleStorageStackProductPhotosDistributionOrigin11D3BF425",
+      "ViewerProtocolPolicy": "redirect-to-https"
+     },
+     "Enabled": true,
+     "HttpVersion": "http2",
+     "IPV6Enabled": true,
+     "Origins": [
+      {
+       "DomainName": {
+        "Fn::GetAtt": [
+         "ProductPhotosBucketC3E952F6",
+         "RegionalDomainName"
+        ]
+       },
+       "Id": "UpSycleStorageStackProductPhotosDistributionOrigin11D3BF425",
+       "OriginAccessControlId": {
+        "Fn::GetAtt": [
+         "ProductPhotosDistributionOrigin1S3OriginAccessControl9919CEE1",
+         "Id"
+        ]
+       },
+       "S3OriginConfig": {
+        "OriginAccessIdentity": ""
+       }
+      }
+     ],
+     "PriceClass": "PriceClass_100"
+    },
+    "Tags": [
+     {
+      "Key": "project",
+      "Value": "UpSycle"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "UpSycle-StorageStack/ProductPhotosDistribution/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/3WLwQrCMBBEv8V7utYWvGu9K/YDpE1T2TZuJLuxSMi/S62gF2HgzQwzBRTbDeSrZuJMd2NmsYVYS6NH1Ux8iVxC3Ac9GlFVTx+34OQs6ue3XnJS2rrQ9d6RQDwgi8c2CDpSdXn0eEXaaW2YK0finZ3/f+rfc0rvYZB7kKTIdQYGXj+KHGatBkbMfCDBm4HzwheFyllF2wAAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "UpSycle-StorageStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "ProductPhotosBucketName": {
+   "Value": {
+    "Ref": "ProductPhotosBucketC3E952F6"
+   }
+  },
+  "SellerVettingPhotosBucketName": {
+   "Value": {
+    "Ref": "SellerVettingPhotosBucket14B77B1E"
+   }
+  },
+  "CloudFrontDomainName": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ProductPhotosDistribution991688D7",
+     "DomainName"
+    ]
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

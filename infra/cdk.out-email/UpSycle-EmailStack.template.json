@@ -1,0 +1,76 @@
+{
+ "Description": "UpSycle: SES identity for transactional email (OTP recovery, referral invites)",
+ "Resources": {
+  "UpSycleDomainIdentityC5045A4C": {
+   "Type": "AWS::SES::EmailIdentity",
+   "Properties": {
+    "DkimAttributes": {
+     "SigningEnabled": true
+    },
+    "EmailIdentity": "UpSycleMarket.com",
+    "MailFromAttributes": {
+     "MailFromDomain": "mail.UpSycleMarket.com"
+    },
+    "Tags": [
+     {
+      "Key": "project",
+      "Value": "UpSycle"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "UpSycle-EmailStack/UpSycleDomainIdentity/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/zPSMzIz1DNQTCwv1k1OydbNyUzSqw4uSUzO1kksL44vTi3Wq3bNTczM8UxJzSvJLKnUcU7LQxGoBYn4l5YUlJbU6uTlp6TqZRXrlxkZ6IGQYlZxZqZuUWleSWZuql4QhAYAZhAB9XQAAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "UpSycle-EmailStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "SesIdentityName": {
+   "Value": {
+    "Ref": "UpSycleDomainIdentityC5045A4C"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

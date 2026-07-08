@@ -1,0 +1,21 @@
+{
+  "version": "54.0.0",
+  "files": {
+    "9c04627bb4687dead6afea762ba20ce1020b9c011d385d48f1223a738ab963da": {
+      "displayName": "UpSycle-EmailStack Template",
+      "source": {
+        "path": "UpSycle-EmailStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "506145782106-us-west-2-aa0cb10e": {
+          "bucketName": "cdk-hnb659fds-assets-506145782106-us-west-2",
+          "objectKey": "9c04627bb4687dead6afea762ba20ce1020b9c011d385d48f1223a738ab963da.json",
+          "region": "us-west-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::506145782106:role/cdk-hnb659fds-file-publishing-role-506145782106-us-west-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

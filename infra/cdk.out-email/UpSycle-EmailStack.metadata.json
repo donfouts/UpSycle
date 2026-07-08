@@ -1,0 +1,88 @@
+{
+  "/UpSycle-EmailStack": [
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "<anonymous> (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\bin\\infra.ts:52:20)",
+        "...node internals, ts-node, ts-node, ts-node..."
+      ]
+    },
+    {
+      "type": "aws:cdk:stack-tags",
+      "data": [
+        {
+          "key": "project",
+          "value": "UpSycle"
+        }
+      ]
+    }
+  ],
+  "/UpSycle-EmailStack/SesIdentityName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SesIdentityName"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "new EmailStack (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\lib\\stacks\\email-stack.ts:39:5)",
+        "<anonymous> (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\bin\\infra.ts:52:20)",
+        "...node internals, ts-node, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/UpSycle-EmailStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ],
+  "/UpSycle-EmailStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ],
+  "/UpSycle-EmailStack/UpSycleDomainIdentity/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "UpSycleDomainIdentityC5045A4C"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new EmailIdentity2 in aws-cdk-lib...",
+        "new EmailStack (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\lib\\stacks\\email-stack.ts:33:21)",
+        "<anonymous> (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\bin\\infra.ts:52:20)",
+        "...node internals, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/UpSycle-EmailStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib, node internals...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ]
+}

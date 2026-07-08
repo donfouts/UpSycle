@@ -1,0 +1,128 @@
+{
+  "/UpSycle-HostingStack": [
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "<anonymous> (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\bin\\infra.ts:58:22)",
+        "...node internals, ts-node, ts-node, ts-node..."
+      ]
+    },
+    {
+      "type": "aws:cdk:stack-tags",
+      "data": [
+        {
+          "key": "project",
+          "value": "UpSycle"
+        }
+      ]
+    }
+  ],
+  "/UpSycle-HostingStack/UpSycleAmplifyApp": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "UpSycleAmplifyApp"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "new HostingStack (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\lib\\stacks\\hosting-stack.ts:49:16)",
+        "<anonymous> (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\bin\\infra.ts:58:22)",
+        "...node internals, ts-node, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/UpSycle-HostingStack/MainBranch": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "MainBranch"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "new HostingStack (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\lib\\stacks\\hosting-stack.ts:93:23)",
+        "<anonymous> (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\bin\\infra.ts:58:22)",
+        "...node internals, ts-node, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/UpSycle-HostingStack/AmplifyAppId": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AmplifyAppId"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "new HostingStack (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\lib\\stacks\\hosting-stack.ts:103:5)",
+        "<anonymous> (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\bin\\infra.ts:58:22)",
+        "...node internals, ts-node, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/UpSycle-HostingStack/AmplifyDefaultDomain": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AmplifyDefaultDomain"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "new HostingStack (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\lib\\stacks\\hosting-stack.ts:104:5)",
+        "<anonymous> (D:\\claude\\Projects\\UpSycyle\\Web\\UpSycle\\infra\\bin\\infra.ts:58:22)",
+        "...node internals, ts-node, ts-node, ts-node..."
+      ]
+    }
+  ],
+  "/UpSycle-HostingStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ],
+  "/UpSycle-HostingStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ],
+  "/UpSycle-HostingStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib, node internals...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ],
+  "/UpSycle-HostingStack/Exports/Output{\"Fn::GetAtt\":[\"UpSycleAmplifyApp\",\"AppId\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttUpSycleAmplifyAppAppIdD6CF1512"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...aws-cdk-lib, node internals...",
+        "(no user code in 10 frames, use --stack-trace-limit to capture more)"
+      ]
+    }
+  ]
+}

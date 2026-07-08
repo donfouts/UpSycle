@@ -1,0 +1,36 @@
+{
+  "version": "54.0.0",
+  "files": {
+    "02b51ab524e7bcf8f477de3e71e5f9a72e448301b26ba62e9e75a14f9c55a093": {
+      "displayName": "UpSycle-NetworkStack/Custom::VpcRestrictDefaultSGCustomResourceProvider Code",
+      "source": {
+        "path": "asset.02b51ab524e7bcf8f477de3e71e5f9a72e448301b26ba62e9e75a14f9c55a093",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "506145782106-us-west-2-f5db6631": {
+          "bucketName": "cdk-hnb659fds-assets-506145782106-us-west-2",
+          "objectKey": "02b51ab524e7bcf8f477de3e71e5f9a72e448301b26ba62e9e75a14f9c55a093.zip",
+          "region": "us-west-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::506145782106:role/cdk-hnb659fds-file-publishing-role-506145782106-us-west-2"
+        }
+      }
+    },
+    "44154637cb2f0b787d850e6d361451c39a19111fdc346a8b6379c8ca7d5917a8": {
+      "displayName": "UpSycle-NetworkStack Template",
+      "source": {
+        "path": "UpSycle-NetworkStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "506145782106-us-west-2-43c69275": {
+          "bucketName": "cdk-hnb659fds-assets-506145782106-us-west-2",
+          "objectKey": "44154637cb2f0b787d850e6d361451c39a19111fdc346a8b6379c8ca7d5917a8.json",
+          "region": "us-west-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::506145782106:role/cdk-hnb659fds-file-publishing-role-506145782106-us-west-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}
