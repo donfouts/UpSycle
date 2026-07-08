@@ -48,7 +48,7 @@ export default function Header() {
         </li>
         <li className="hidden md:block">
           <Link
-            href="/sign-in"
+            href="/login"
             className="text-[0.68rem] font-medium tracking-[0.13em] uppercase text-[rgba(245,237,224,0.4)] no-underline"
           >
             Sign In

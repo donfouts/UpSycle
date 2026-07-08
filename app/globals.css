@@ -34,6 +34,7 @@
   --muted: rgba(245, 237, 224, 0.5);
   --muted2: rgba(245, 237, 224, 0.72);
   --success: #7aaa7a;
+  --danger: #e0897d;
 
   --font-serif-stack: var(--font-cormorant), Georgia, serif;
   --font-sans-ui: var(--font-montserrat), system-ui, sans-serif;
@@ -168,4 +169,144 @@ a {
   section {
     padding: 68px 20px;
   }
+}
+
+/* ══════════════════════════════════════
+   AUTH FORMS
+   Used by app/(auth)/** — signup, login, and
+   password-recovery pages. Kept consistent with the
+   token system above rather than the (missing) admin
+   _shared.css referenced in Sample/admin.html.
+══════════════════════════════════════ */
+.auth-card {
+  background: var(--charcoal);
+  border: 1px solid var(--border);
+  padding: 44px 40px;
+}
+
+@media (max-width: 560px) {
+  .auth-card {
+    padding: 32px 24px;
+  }
+}
+
+.auth-title {
+  font-family: var(--font-serif);
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--cream);
+  margin-bottom: 10px;
+}
+
+.auth-subtitle {
+  font-size: 0.85rem;
+  font-weight: 300;
+  color: var(--muted2);
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 560px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--rg-core);
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  color: var(--cream);
+  padding: 12px 14px;
+  font-family: var(--font-sans-ui);
+  font-size: 0.88rem;
+  font-weight: 300;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-input::placeholder {
+  color: var(--muted);
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--rg-core);
+}
+
+.form-hint {
+  font-size: 0.72rem;
+  font-weight: 300;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-top: -10px;
+  margin-bottom: 4px;
+}
+
+.form-error {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--danger);
+  background: rgba(224, 137, 125, 0.08);
+  border: 1px solid rgba(224, 137, 125, 0.25);
+  padding: 12px 14px;
+  margin-bottom: 24px;
+}
+
+.form-success {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--success);
+  background: rgba(122, 170, 122, 0.08);
+  border: 1px solid rgba(122, 170, 122, 0.25);
+  padding: 12px 14px;
+  margin-bottom: 24px;
+}
+
+.auth-footer-link {
+  margin-top: 24px;
+  font-size: 0.8rem;
+  font-weight: 300;
+  color: var(--muted2);
+  text-align: center;
+}
+
+.auth-footer-link a {
+  color: var(--rg-light);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.auth-footer-link a:hover {
+  text-decoration: underline;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }

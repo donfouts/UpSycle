@@ -15,7 +15,7 @@ const footerCols = [
     title: "Sell",
     links: [
       { href: "/sell", label: "Open a Shop" },
-      { href: "/sign-in", label: "Seller Sign In" },
+      { href: "/login", label: "Seller Sign In" },
       { href: "/#how-it-works", label: "How It Works" },
     ],
   },
