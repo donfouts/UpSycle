@@ -1,0 +1,25 @@
+{
+  "name": "upsycle-infra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AWS CDK (TypeScript) app provisioning the UpSycle marketplace AWS infrastructure. Self-contained — independent of the Next.js app's package.json.",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "cdk": "cdk"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.170.0",
+    "constructs": "^10.4.2",
+    "source-map-support": "^0.5.21"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/source-map-support": "^0.5.10",
+    "aws-cdk": "^2.1029.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}

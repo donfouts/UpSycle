@@ -1,0 +1,16 @@
+*.js
+!jest.config.js
+*.d.ts
+node_modules
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+
+# CDK CLI context cache — contains account-specific lookups (e.g. discovered
+# availability zones for whichever AWS account/region ran `cdk synth`) and
+# should not be committed since it's environment-specific, not app config.
+cdk.context.json
+
+dist
+*.tsbuildinfo
