@@ -1,5 +1,6 @@
 import Link from "next/link";
 import CategoryNav from "@/components/CategoryNav";
+import CartBadge from "@/components/cart/CartBadge";
 import { CATEGORY_TREE } from "@/lib/categories";
 
 const navLinks = [
@@ -57,6 +58,9 @@ export default function Header() {
           >
             Sign In
           </Link>
+        </li>
+        <li>
+          <CartBadge />
         </li>
       </ul>
     </nav>
