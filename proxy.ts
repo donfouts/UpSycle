@@ -17,7 +17,14 @@ import { ID_TOKEN_COOKIE } from "@/lib/auth-constants";
 //
 // Named `proxy.ts` per Next.js 16's rename of the `middleware.ts` file
 // convention (https://nextjs.org/docs/messages/middleware-to-proxy).
-const PROTECTED_PREFIXES = ["/account", "/admin", "/sell/products", "/cart", "/checkout"];
+const PROTECTED_PREFIXES = [
+  "/account",
+  "/admin",
+  "/sell/products",
+  "/sell/sales",
+  "/cart",
+  "/checkout",
+];
 
 function isExpiredOrInvalid(token: string): boolean {
   try {
@@ -56,6 +63,7 @@ export const config = {
     "/account/:path*",
     "/admin/:path*",
     "/sell/products/:path*",
+    "/sell/sales/:path*",
     "/cart/:path*",
     "/checkout/:path*",
   ],

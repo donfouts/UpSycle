@@ -268,7 +268,10 @@ const PRODUCTS: SeedProduct[] = [
 async function seedProducts(sellerProfiles: Awaited<ReturnType<typeof seedSellers>>) {
   console.log("Clearing existing demo products...");
   await prisma.productPhoto.deleteMany({});
-  await prisma.orderItem.deleteMany({});
+  // Deleting Order cascades to its OrderItems (see schema's onDelete: Cascade
+  // on OrderItem.order) — must happen before Product is cleared below since
+  // OrderItem -> Product is onDelete: Restrict.
+  await prisma.order.deleteMany({});
   await prisma.product.deleteMany({});
 
   console.log("Seeding products...");
@@ -391,6 +394,12 @@ async function seedBuyerOrders(products: Awaited<ReturnType<typeof seedProducts>
   await createOrder([vessel], 9, [ShippingStatus.SHIPPED]);
   // Order 3 (2 days ago, spans two different sellers, shipping independently).
   await createOrder([table, wrap], 2, [ShippingStatus.PENDING_SHIPMENT, ShippingStatus.SHIPPED]);
+  // Order 4 (~40 days ago, so it reliably lands in the *previous* calendar
+  // month regardless of when seeding runs) — exercises the seller sales
+  // dashboard's "sold this month" filter actually excluding older orders,
+  // while still showing up in buyer order history and its pending item still
+  // appearing in the seller's pending-shipment tab (not month-filtered).
+  await createOrder([table, wrap], 40, [ShippingStatus.DELIVERED, ShippingStatus.PENDING_SHIPMENT]);
 }
 
 async function main() {
