@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The infra/ directory is a separate CDK app with its own tsconfig
+    // (excluded from this app's tsconfig too) — its synth output
+    // (cdk.out/cdk.out-*) contains bundled Lambda JS, not our source.
+    "infra/**",
   ]),
 ]);
 
