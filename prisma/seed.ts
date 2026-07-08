@@ -200,15 +200,19 @@ const PRODUCTS: SeedProduct[] = [
 async function seedProducts(sellerProfiles: Awaited<ReturnType<typeof seedSellers>>) {
   console.log("Clearing existing demo products...");
   await prisma.productPhoto.deleteMany({});
-  await prisma.orderItem.deleteMany({});
+  // Deleting Order cascades to its OrderItems (see schema's onDelete: Cascade
+  // on OrderItem.order) — must happen before Product is cleared below since
+  // OrderItem -> Product is onDelete: Restrict.
+  await prisma.order.deleteMany({});
   await prisma.product.deleteMany({});
 
   console.log("Seeding products...");
+  const created = [];
   for (const [i, p] of PRODUCTS.entries()) {
     const category = await prisma.category.findUniqueOrThrow({ where: { slug: p.categorySlug } });
     const seller = sellerProfiles[p.sellerIndex];
 
-    await prisma.product.create({
+    const product = await prisma.product.create({
       data: {
         sellerProfileId: seller.id,
         categoryId: category.id,
@@ -229,13 +233,128 @@ async function seedProducts(sellerProfiles: Awaited<ReturnType<typeof seedSeller
         },
       },
     });
+    created.push(product);
+  }
+  return created;
+}
+
+// ---------------------------------------------------------------------------
+// Demo orders (issue #13 — seller sales view)
+// ---------------------------------------------------------------------------
+// feature/cart-checkout (the branch that will actually create Order/
+// OrderItem rows at checkout) hasn't merged yet, so there's normally no order
+// data to develop the seller sales dashboard against locally. This seeds one
+// demo buyer + a handful of Order/OrderItem rows spanning multiple sellers
+// and shippingStatus values so /sell/sales is demoable. Kept intentionally
+// small and separate from seedProducts; if feature/cart-checkout's own seed
+// additions conflict with this at merge time, that's expected — reconcile
+// then.
+interface DemoOrderItemSpec {
+  productIndex: number; // index into PRODUCTS / the `created` array from seedProducts
+  quantity: number;
+  shippingStatus: "PENDING_SHIPMENT" | "SHIPPED" | "DELIVERED";
+}
+
+interface DemoOrderSpec {
+  createdAt: Date;
+  items: DemoOrderItemSpec[];
+}
+
+async function seedOrders(products: Awaited<ReturnType<typeof seedProducts>>) {
+  console.log("Seeding demo buyer + orders...");
+
+  const buyer = await prisma.user.upsert({
+    where: { cognitoSub: "seed-cognito-demo-buyer" },
+    update: {},
+    create: {
+      cognitoSub: "seed-cognito-demo-buyer",
+      email: "buyer@example.com",
+      firstName: "Jordan",
+      lastName: "Lee",
+      roles: { create: [{ role: Role.BUYER }] },
+    },
+  });
+
+  const address = await prisma.address.upsert({
+    where: { id: "seed-demo-buyer-address" },
+    update: {},
+    create: {
+      id: "seed-demo-buyer-address",
+      userId: buyer.id,
+      line1: "742 Evergreen Terrace",
+      city: "Springfield",
+      state: "OR",
+      postalCode: "97403",
+      country: "US",
+      isDefault: true,
+    },
+  });
+
+  const now = new Date();
+  const DEMO_ORDERS: DemoOrderSpec[] = [
+    {
+      // Recent order, still awaiting shipment — spans two sellers (0 and 1)
+      // to demo the "single order, multiple sellers ship independently" case.
+      createdAt: new Date(now.getFullYear(), now.getMonth(), Math.min(now.getDate(), 25), 14, 30),
+      items: [
+        { productIndex: 0, quantity: 1, shippingStatus: "PENDING_SHIPMENT" },
+        { productIndex: 2, quantity: 1, shippingStatus: "PENDING_SHIPMENT" },
+      ],
+    },
+    {
+      // Earlier this month, already shipped — counts toward this month's
+      // "sold" summary but not the pending-shipment tab.
+      createdAt: new Date(now.getFullYear(), now.getMonth(), 2, 9, 15),
+      items: [{ productIndex: 1, quantity: 2, shippingStatus: "SHIPPED" }],
+    },
+    {
+      // Last month — excluded from "sold this month", shown in order history.
+      // Also spans two sellers (2 and 0), and includes a still-pending item
+      // from a month-old order to show the pending tab isn't month-filtered.
+      createdAt: new Date(now.getFullYear(), now.getMonth() - 1, 20, 10, 0),
+      items: [
+        { productIndex: 4, quantity: 1, shippingStatus: "DELIVERED" },
+        { productIndex: 6, quantity: 1, shippingStatus: "PENDING_SHIPMENT" },
+      ],
+    },
+  ];
+
+  for (const orderSpec of DEMO_ORDERS) {
+    const totalAmountCents = orderSpec.items.reduce((sum, item) => {
+      const product = products[item.productIndex];
+      return sum + (product.priceCents + product.shippingCostCents) * item.quantity;
+    }, 0);
+
+    await prisma.order.create({
+      data: {
+        buyerId: buyer.id,
+        shippingAddressId: address.id,
+        totalAmountCents,
+        createdAt: orderSpec.createdAt,
+        items: {
+          create: orderSpec.items.map((item) => {
+            const product = products[item.productIndex];
+            return {
+              productId: product.id,
+              sellerProfileId: product.sellerProfileId,
+              quantity: item.quantity,
+              unitPriceCents: product.priceCents,
+              shippingCostCents: product.shippingCostCents,
+              shippingStatus: item.shippingStatus,
+              createdAt: orderSpec.createdAt,
+            };
+          }),
+        },
+      },
+    });
   }
 }
 
 async function main() {
   await seedCategories();
   const sellerProfiles = await seedSellers();
-  await seedProducts(sellerProfiles);
+  const products = await seedProducts(sellerProfiles);
+  await seedOrders(products);
   console.log("Seed complete.");
 }
 

@@ -39,3 +39,18 @@ export function sellerDisplayName(seller: {
   const name = [seller.user.firstName, seller.user.lastName].filter(Boolean).join(" ").trim();
   return name.length > 0 ? name : seller.user.email.split("@")[0];
 }
+
+// Human-readable label for OrderItem.shippingStatus, used by the seller
+// sales dashboard (issue #13).
+export function shippingStatusLabel(status: "PENDING_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED"): string {
+  switch (status) {
+    case "PENDING_SHIPMENT":
+      return "Pending Shipment";
+    case "SHIPPED":
+      return "Shipped";
+    case "DELIVERED":
+      return "Delivered";
+    case "CANCELLED":
+      return "Cancelled";
+  }
+}
