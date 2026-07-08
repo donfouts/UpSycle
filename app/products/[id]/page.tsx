@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import AddToCartButton from "@/components/AddToCartButton";
 import {
   formatPriceCents,
   formatWeightGrams,
@@ -126,13 +127,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               )}
             </dl>
 
-            <button
-              type="button"
-              disabled={stock.tone === "out"}
-              className="btn-primary disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {stock.tone === "out" ? "Out of Stock" : "Add to Cart"}
-            </button>
+            <AddToCartButton productId={product.id} inventoryCount={product.inventoryCount} />
           </div>
         </div>
       </div>
