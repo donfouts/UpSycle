@@ -1,4 +1,5 @@
 import {
+  AdminDeleteUserCommand,
   AuthFlowType,
   CognitoIdentityProviderClient,
   ConfirmForgotPasswordCommand,
@@ -40,11 +41,23 @@ function getClientId(): string {
   return clientId;
 }
 
+function getUserPoolId(): string {
+  const userPoolId = process.env.COGNITO_USER_POOL_ID;
+  if (!userPoolId) {
+    throw new Error(
+      "COGNITO_USER_POOL_ID is not configured. Set it in .env once the Cognito User Pool is provisioned.",
+    );
+  }
+  return userPoolId;
+}
+
 export interface SignUpParams {
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
+  // Buyer signup collects these; seller signup currently doesn't, so they're
+  // optional — only set on the Cognito user when provided.
+  firstName?: string;
+  lastName?: string;
 }
 
 export interface SignUpResult {
@@ -53,16 +66,16 @@ export interface SignUpResult {
 }
 
 export async function signUp({ email, password, firstName, lastName }: SignUpParams): Promise<SignUpResult> {
+  const UserAttributes = [{ Name: "email", Value: email }];
+  if (firstName) UserAttributes.push({ Name: "given_name", Value: firstName });
+  if (lastName) UserAttributes.push({ Name: "family_name", Value: lastName });
+
   const result = await getClient().send(
     new SignUpCommand({
       ClientId: getClientId(),
       Username: email,
       Password: password,
-      UserAttributes: [
-        { Name: "email", Value: email },
-        { Name: "given_name", Value: firstName },
-        { Name: "family_name", Value: lastName },
-      ],
+      UserAttributes,
     }),
   );
 
@@ -154,6 +167,24 @@ export async function confirmForgotPassword(email: string, code: string, newPass
       Password: newPassword,
     }),
   );
+}
+
+/**
+ * Compensating action for the seller-signup saga: if the Postgres
+ * transaction that follows Cognito signUp fails, the app is left with a
+ * Cognito user that has no matching database row. Deleting it here lets the
+ * applicant retry signup with the same email instead of hitting
+ * "user already exists". Best-effort only — failures are logged, not
+ * thrown, so the original DB error is still what the caller sees/returns.
+ */
+export async function deleteUnconfirmedUser(email: string): Promise<void> {
+  try {
+    await getClient().send(
+      new AdminDeleteUserCommand({ UserPoolId: getUserPoolId(), Username: email }),
+    );
+  } catch (err) {
+    console.error("Failed to roll back Cognito user after a DB error:", err);
+  }
 }
 
 // Cognito throws typed exceptions (by `.name`) for known failure cases. We
