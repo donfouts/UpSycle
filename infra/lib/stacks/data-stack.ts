@@ -31,7 +31,7 @@ export class DataStack extends cdk.Stack {
 
     const dbSecurityGroup = new ec2.SecurityGroup(this, "DbSecurityGroup", {
       vpc: props.vpc,
-      description: "UpSycle RDS Postgres — no inbound from the internet; only from within the VPC",
+      description: "UpSycle RDS Postgres - no inbound from the internet; only from within the VPC",
       allowAllOutbound: false,
     });
     // Allow Postgres traffic from anything else inside the VPC (e.g. a future
