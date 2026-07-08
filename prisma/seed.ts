@@ -6,7 +6,7 @@
 // — instead this script clears existing demo products/photos before
 // re-inserting, so it's safe to run repeatedly against a scratch dev DB
 // without accumulating duplicates. Do not point this at a shared/prod DB.
-import { PrismaClient, Role, SellerApprovalStatus } from "@prisma/client";
+import { PrismaClient, Role, SellerApprovalStatus, ShippingStatus } from "@prisma/client";
 import { CATEGORY_TREE } from "../lib/categories";
 
 const prisma = new PrismaClient();
@@ -272,11 +272,12 @@ async function seedProducts(sellerProfiles: Awaited<ReturnType<typeof seedSeller
   await prisma.product.deleteMany({});
 
   console.log("Seeding products...");
+  const createdProducts = [];
   for (const [i, p] of PRODUCTS.entries()) {
     const category = await prisma.category.findUniqueOrThrow({ where: { slug: p.categorySlug } });
     const seller = sellerProfiles[p.sellerIndex];
 
-    await prisma.product.create({
+    const product = await prisma.product.create({
       data: {
         sellerProfileId: seller.id,
         categoryId: category.id,
@@ -297,13 +298,106 @@ async function seedProducts(sellerProfiles: Awaited<ReturnType<typeof seedSeller
         },
       },
     });
+    createdProducts.push(product);
   }
+  return createdProducts;
+}
+
+// Demo buyer used to populate order history (issue #12) so app/account/orders
+// is demoable without needing the parallel cart/checkout branch merged first.
+const BUYER = {
+  cognitoSub: "seed-cognito-buyer-jordan",
+  email: "jordan.buyer@example.com",
+  firstName: "Jordan",
+  lastName: "Ellis",
+};
+
+async function seedBuyerOrders(products: Awaited<ReturnType<typeof seedProducts>>) {
+  console.log("Seeding demo buyer + order history...");
+
+  const buyer = await prisma.user.upsert({
+    where: { cognitoSub: BUYER.cognitoSub },
+    update: {},
+    create: {
+      cognitoSub: BUYER.cognitoSub,
+      email: BUYER.email,
+      firstName: BUYER.firstName,
+      lastName: BUYER.lastName,
+      roles: { create: [{ role: Role.BUYER }] },
+    },
+  });
+
+  // Address/Order have no natural unique key to upsert on — clear and
+  // recreate this buyer's demo orders/addresses each run, same approach as
+  // seedProducts above (Order.items cascades on delete, so this also clears
+  // the buyer's OrderItems).
+  await prisma.order.deleteMany({ where: { buyerId: buyer.id } });
+  await prisma.address.deleteMany({ where: { userId: buyer.id } });
+
+  const address = await prisma.address.create({
+    data: {
+      userId: buyer.id,
+      line1: "482 Canyon Ridge Ave",
+      city: "Tucson",
+      state: "AZ",
+      postalCode: "85701",
+      country: "US",
+      isDefault: true,
+    },
+  });
+
+  const [pendant, hoops, vessel, , table, , wrap] = products;
+
+  async function createOrder(
+    items: typeof products,
+    daysAgo: number,
+    itemStatuses: ShippingStatus[],
+  ) {
+    const totalAmountCents = items.reduce(
+      (sum, p) => sum + p.priceCents + p.shippingCostCents,
+      0,
+    );
+    const overallStatus = itemStatuses.every((s) => s === ShippingStatus.DELIVERED)
+      ? ShippingStatus.DELIVERED
+      : itemStatuses.some((s) => s === ShippingStatus.SHIPPED || s === ShippingStatus.DELIVERED)
+        ? ShippingStatus.SHIPPED
+        : ShippingStatus.PENDING_SHIPMENT;
+
+    await prisma.order.create({
+      data: {
+        buyerId: buyer.id,
+        shippingAddressId: address.id,
+        shippingStatus: overallStatus,
+        totalAmountCents,
+        stripePaymentId: `seed_pi_${Math.random().toString(36).slice(2, 10)}`,
+        createdAt: new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000),
+        items: {
+          create: items.map((p, idx) => ({
+            productId: p.id,
+            sellerProfileId: p.sellerProfileId,
+            quantity: 1,
+            unitPriceCents: p.priceCents,
+            shippingCostCents: p.shippingCostCents,
+            shippingStatus: itemStatuses[idx],
+          })),
+        },
+      },
+    });
+  }
+
+  // Order 1 (3 weeks ago, single seller, fully delivered).
+  await createOrder([pendant, hoops], 21, [ShippingStatus.DELIVERED, ShippingStatus.DELIVERED]);
+  // Order 2 (~9 days ago, single item, shipped but not yet delivered).
+  await createOrder([vessel], 9, [ShippingStatus.SHIPPED]);
+  // Order 3 (2 days ago, spans two different sellers, shipping independently).
+  await createOrder([table, wrap], 2, [ShippingStatus.PENDING_SHIPMENT, ShippingStatus.SHIPPED]);
 }
 
 async function main() {
   await seedCategories();
   const sellerProfiles = await seedSellers();
-  await seedProducts(sellerProfiles);
+  const products = await seedProducts(sellerProfiles);
+  await seedBuyerOrders(products);
   await seedPendingSellerApplication();
   await seedAdmin();
   console.log("Seed complete.");

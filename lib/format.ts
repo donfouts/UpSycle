@@ -6,6 +6,12 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   currency: "USD",
 });
 
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
 export function formatPriceCents(cents: number): string {
   return currencyFormatter.format(cents / 100);
 }
@@ -20,6 +26,10 @@ export function dollarsToCents(dollars: string | number): number {
 /** Integer cents to a plain "12.34" string, suitable for a controlled dollar input's value. */
 export function centsToDollarsInput(cents: number): string {
   return (cents / 100).toFixed(2);
+}
+
+export function formatDate(date: Date): string {
+  return dateFormatter.format(date);
 }
 
 export function formatWeightGrams(grams: number): string {
