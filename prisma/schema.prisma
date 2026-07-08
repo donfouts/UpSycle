@@ -235,6 +235,11 @@ model Order {
   buyerId           String
   shippingAddressId String
 
+  // Whole-order convenience status (e.g. for a buyer's order-history list).
+  // Authoritative shipment tracking is per-line-item (see OrderItem below),
+  // since a single cart/order can span multiple sellers who ship
+  // independently — this field is a derived/display aggregate, not the
+  // thing sellers update directly.
   shippingStatus   ShippingStatus @default(PENDING_SHIPMENT)
   totalAmountCents Int
   stripePaymentId  String? // Stripe Connect payment intent/charge reference
@@ -261,6 +266,11 @@ model OrderItem {
   quantity          Int @default(1)
   unitPriceCents    Int // price at time of purchase (snapshot, independent of later Product edits)
   shippingCostCents Int
+
+  // Per-line-item shipment tracking. A single Order can contain items from
+  // multiple sellers, each of whom ships independently — so "mark as
+  // shipped" (issue #13) must act here, not on Order.shippingStatus.
+  shippingStatus ShippingStatus @default(PENDING_SHIPMENT)
 
   createdAt DateTime @default(now())
 
