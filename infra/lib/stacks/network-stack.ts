@@ -14,10 +14,13 @@ import { Construct } from "constructs";
  * This VPC therefore has:
  *  - NO NAT Gateway (the single biggest avoidable cost at MVP scale, ~$33+/mo)
  *  - NO Elastic IP
- *  - A PRIVATE_ISOLATED subnet for RDS (no route to the internet at all)
- *  - A PUBLIC subnet (present only because CDK's VPC construct requires at
- *    least one subnet with an internet gateway route to synth cleanly; nothing
- *    is deployed into it) with no NAT attached
+ *  - A PRIVATE_ISOLATED subnet (currently unused — kept for any future
+ *    resource, e.g. a Lambda, that should never be internet-reachable)
+ *  - A PUBLIC subnet, now actually used by DataStack's RDS instance: Amplify
+ *    Hosting's Next.js SSR compute has no VPC-attachment option at all, so
+ *    RDS had to move here (publiclyAccessible, password-protected only) for
+ *    the deployed app to be able to reach it. See DataStack's doc comment
+ *    for the full rationale/tradeoff.
  *  - An S3 Gateway VPC Endpoint (free) so anything in the VPC that needs S3
  *    access (e.g., a future Lambda doing image processing against RDS) can
  *    reach it without a NAT Gateway or internet path.

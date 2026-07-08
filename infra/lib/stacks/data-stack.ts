@@ -10,9 +10,20 @@ export interface DataStackProps extends cdk.StackProps {
 /**
  * DataStack
  *
- * RDS PostgreSQL db.t4g.micro, single-AZ, 20GB gp3, deployed into the
- * PRIVATE_ISOLATED subnet created by NetworkStack (no internet route, no NAT
- * Gateway needed since RDS never needs outbound internet access).
+ * RDS PostgreSQL db.t4g.micro, single-AZ, 20GB gp3.
+ *
+ * IMPORTANT — publicly accessible by design, not an oversight: this app's
+ * compute (AWS Amplify Hosting's Next.js SSR, see HostingStack) has no VPC
+ * attachment option (`AWS::Amplify::App` exposes no VPC config at all), so a
+ * PRIVATE_ISOLATED-subnet-only RDS instance would be unreachable by the
+ * deployed app on every request, not just for one-off migrations. Given
+ * Amplify's compute has no static egress IP to scope an ingress rule to, the
+ * security group allows Postgres from anywhere and access is protected
+ * solely by the strong auto-generated Secrets Manager password — the
+ * standard tradeoff for serverless-hosting + RDS setups without VPC peering.
+ * Confirmed with the project owner before deploying (see issue history).
+ * Revisit if/when the app moves to VPC-attachable compute (e.g. Fargate) or
+ * Aurora Serverless's Data API.
  *
  * Credentials are generated and stored in Secrets Manager by
  * `rds.DatabaseInstance` automatically (via `credentials: rds.Credentials.fromGeneratedSecret(...)`)
@@ -31,15 +42,13 @@ export class DataStack extends cdk.Stack {
 
     const dbSecurityGroup = new ec2.SecurityGroup(this, "DbSecurityGroup", {
       vpc: props.vpc,
-      description: "UpSycle RDS Postgres - no inbound from the internet; only from within the VPC",
+      description: "UpSycle RDS Postgres - publicly reachable, password-protected only (see DataStack doc comment)",
       allowAllOutbound: false,
     });
-    // Allow Postgres traffic from anything else inside the VPC (e.g. a future
-    // Lambda with an ENI in the private subnet). No public ingress at all.
     dbSecurityGroup.addIngressRule(
-      ec2.Peer.ipv4(props.vpc.vpcCidrBlock),
+      ec2.Peer.anyIpv4(),
       ec2.Port.tcp(5432),
-      "Postgres from within the VPC only"
+      "Postgres from anywhere - Amplify SSR compute has no VPC attachment/static IP to scope this to; auth is via the strong generated password only"
     );
 
     this.dbInstance = new rds.DatabaseInstance(this, "UpSycleDatabase", {
@@ -53,7 +62,9 @@ export class DataStack extends cdk.Stack {
       }),
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
       vpc: props.vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      // PUBLIC (not PRIVATE_ISOLATED) so publiclyAccessible below actually
+      // gets a route to the internet gateway.
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       securityGroups: [dbSecurityGroup],
       credentials: rds.Credentials.fromGeneratedSecret("upsycle_admin", {
         secretName: "upsycle/rds/postgres-admin",
@@ -62,7 +73,7 @@ export class DataStack extends cdk.Stack {
       allocatedStorage: 20,
       storageType: rds.StorageType.GP3,
       multiAz: false, // single-AZ per infra plan; revisit once uptime SLA matters commercially
-      publiclyAccessible: false,
+      publiclyAccessible: true,
       backupRetention: cdk.Duration.days(7),
       deleteAutomatedBackups: true,
       deletionProtection: false, // MVP — flip to true once real customer data lives here
