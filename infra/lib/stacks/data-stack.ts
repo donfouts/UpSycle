@@ -45,7 +45,11 @@ export class DataStack extends cdk.Stack {
     this.dbInstance = new rds.DatabaseInstance(this, "UpSycleDatabase", {
       instanceIdentifier: "upsycle-db",
       engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_16_4,
+        // 16.4 was deprecated/removed from RDS in this region by the time of
+        // deploy; 16.13 is the newest 16.x minor this CDK version's enum
+        // supports and is currently available (checked via
+        // `aws rds describe-db-engine-versions --engine postgres`).
+        version: rds.PostgresEngineVersion.VER_16_13,
       }),
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
       vpc: props.vpc,
