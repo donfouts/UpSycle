@@ -10,6 +10,18 @@ export function formatPriceCents(cents: number): string {
   return currencyFormatter.format(cents / 100);
 }
 
+/** Inverse of formatPriceCents's underlying conversion — dollars-as-typed-in-a-form to integer cents. */
+export function dollarsToCents(dollars: string | number): number {
+  const value = typeof dollars === "number" ? dollars : Number.parseFloat(dollars);
+  if (!Number.isFinite(value)) return NaN;
+  return Math.round(value * 100);
+}
+
+/** Integer cents to a plain "12.34" string, suitable for a controlled dollar input's value. */
+export function centsToDollarsInput(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
 export function formatWeightGrams(grams: number): string {
   if (grams >= 1000) {
     return `${(grams / 1000).toFixed(grams % 1000 === 0 ? 0 : 1)} kg`;

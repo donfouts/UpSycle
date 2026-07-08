@@ -11,6 +11,14 @@ import { createPresignedUpload } from "@/lib/s3";
 
 const ALLOWED_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+// Distinct S3 key prefixes for each upload use case, all in the same
+// PHOTOS_BUCKET_NAME bucket (see lib/s3.ts / .env.example — a second bucket
+// isn't warranted for MVP). Defaults to the original seller-sample-photos
+// prefix so existing callers (SellerSignupForm) that don't pass keyPrefix are
+// unaffected.
+const ALLOWED_KEY_PREFIXES = ["seller-sample-photos", "product-photos", "proof-of-handcrafted"] as const;
+type KeyPrefix = (typeof ALLOWED_KEY_PREFIXES)[number];
+
 export async function POST(request: NextRequest) {
   let body: unknown;
   try {
@@ -19,9 +27,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
   }
 
-  const { fileName, contentType } = (body ?? {}) as {
+  const { fileName, contentType, keyPrefix } = (body ?? {}) as {
     fileName?: unknown;
     contentType?: unknown;
+    keyPrefix?: unknown;
   };
 
   if (typeof fileName !== "string" || !fileName.trim()) {
@@ -35,8 +44,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  let resolvedPrefix: KeyPrefix = "seller-sample-photos";
+  if (keyPrefix !== undefined) {
+    if (typeof keyPrefix !== "string" || !ALLOWED_KEY_PREFIXES.includes(keyPrefix as KeyPrefix)) {
+      return NextResponse.json(
+        { error: `keyPrefix must be one of: ${ALLOWED_KEY_PREFIXES.join(", ")}.` },
+        { status: 400 },
+      );
+    }
+    resolvedPrefix = keyPrefix as KeyPrefix;
+  }
+
   try {
-    const presigned = await createPresignedUpload(fileName, contentType);
+    const presigned = await createPresignedUpload(fileName, contentType, resolvedPrefix);
     return NextResponse.json(presigned);
   } catch (err) {
     console.error("Failed to create presigned upload URL:", err);
