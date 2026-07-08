@@ -6,6 +6,7 @@ node_modules
 # CDK asset staging directory
 .cdk.staging
 cdk.out
+cdk.out-*
 
 # CDK CLI context cache — contains account-specific lookups (e.g. discovered
 # availability zones for whichever AWS account/region ran `cdk synth`) and
