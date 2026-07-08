@@ -1,4 +1,10 @@
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import ProductCard from "@/components/ProductCard";
+
+// Featured products below are fetched live from the DB, so this page can't
+// be statically generated at build time (no DATABASE_URL available then).
+export const dynamic = "force-dynamic";
 
 const trustItems = [
   "No factory goods. Ever.",
@@ -31,7 +37,19 @@ const categories = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const featuredProducts = await prisma.product.findMany({
+    where: { inventoryCount: { gt: 0 } },
+    orderBy: { createdAt: "desc" },
+    take: 6,
+    include: {
+      photos: { orderBy: { position: "asc" }, take: 1 },
+      sellerProfile: {
+        include: { user: { select: { firstName: true, lastName: true, email: true } } },
+      },
+    },
+  });
+
   return (
     <>
       {/* ═══ HERO ═══ */}
@@ -125,6 +143,33 @@ export default function Home() {
           </div>
         ))}
       </div>
+
+      {/* ═══ FEATURED PRODUCTS ═══ */}
+      {featuredProducts.length > 0 && (
+        <section className="bg-[var(--charcoal)] px-6 py-24 md:px-14">
+          <div className="sec-max">
+            <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <div className="eyebrow">Hand-Selected Pieces</div>
+                <h2 className="sec-title mb-0">
+                  Featured <em>Right Now</em>
+                </h2>
+              </div>
+              <Link
+                href="/browse"
+                className="flex items-center gap-1.5 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-[var(--rg-core)] no-underline transition-colors after:content-['→'] hover:text-[var(--rg-light)]"
+              >
+                View All Listings
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 gap-px bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-3">
+              {featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ═══ CATEGORY BROWSE ═══ */}
       <section id="how-it-works" className="bg-[var(--deep)] px-6 py-24 md:px-14">

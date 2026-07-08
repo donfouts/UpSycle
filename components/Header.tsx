@@ -1,7 +1,8 @@
 import Link from "next/link";
+import CategoryNav from "@/components/CategoryNav";
+import { CATEGORY_TREE } from "@/lib/categories";
 
 const navLinks = [
-  { href: "/browse", label: "Browse" },
   { href: "/#how-it-works", label: "How It Works" },
   { href: "/#story", label: "Our Story" },
 ];
@@ -28,6 +29,9 @@ export default function Header() {
         </span>
       </Link>
       <ul className="flex items-center gap-7 list-none">
+        <li className="hidden md:block">
+          <CategoryNav categories={CATEGORY_TREE} />
+        </li>
         {navLinks.map((link) => (
           <li key={link.href} className="hidden md:block">
             <Link
