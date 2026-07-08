@@ -9,9 +9,15 @@ import { ID_TOKEN_COOKIE } from "@/lib/auth-constants";
 // logged-out users away from protected pages; not a security boundary on
 // its own.
 //
+// `/admin` additionally needs an ADMIN UserRole check, which requires a
+// Postgres lookup (via lib/auth.ts's requireAdmin()) that can't run here on
+// the Edge runtime — that real authorization check happens in
+// app/admin/layout.tsx. This proxy only bounces logged-out visitors early;
+// it is not the security boundary for /admin.
+//
 // Named `proxy.ts` per Next.js 16's rename of the `middleware.ts` file
 // convention (https://nextjs.org/docs/messages/middleware-to-proxy).
-const PROTECTED_PREFIXES = ["/account"];
+const PROTECTED_PREFIXES = ["/account", "/admin"];
 
 function isExpiredOrInvalid(token: string): boolean {
   try {
@@ -46,5 +52,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/account/:path*"],
+  matcher: ["/account/:path*", "/admin/:path*"],
 };

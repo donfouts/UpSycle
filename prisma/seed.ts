@@ -90,6 +90,74 @@ async function seedSellers() {
   return sellerProfiles;
 }
 
+// Issue #9 (admin seller approval & user management) needs a PENDING
+// application to review locally — none of the SELLERS above qualify, since
+// they're all seeded APPROVED so seedProducts() has somewhere to attach
+// listings. This applicant is otherwise unused (no products) and carries
+// full vetting detail (website/socials/expected sales/suppliers/5 sample
+// photos) so the admin review screen has real data to render.
+async function seedPendingSellerApplication() {
+  console.log("Seeding a pending seller application...");
+  const user = await prisma.user.upsert({
+    where: { cognitoSub: "seed-cognito-pending-fiber-arts" },
+    update: {},
+    create: {
+      cognitoSub: "seed-cognito-pending-fiber-arts",
+      email: "hello@fiberartscollective.example.com",
+      firstName: "Priya",
+      lastName: "Nair",
+      roles: { create: [{ role: Role.SELLER }] },
+    },
+  });
+
+  await prisma.sellerProfile.upsert({
+    where: { userId: user.id },
+    update: {},
+    create: {
+      userId: user.id,
+      websiteUrl: "https://fiberartscollective.example.com",
+      socialMediaUrls: [
+        "https://instagram.com/fiberartscollective",
+        "https://pinterest.com/fiberartscollective",
+      ],
+      expectedMonthlySales: 40,
+      supplierList: ["Local wool mill co-op", "Estate sale textile lots"],
+      approvalStatus: SellerApprovalStatus.PENDING,
+      samplePhotos: {
+        create: Array.from({ length: 5 }, (_, i) => ({
+          url: `https://picsum.photos/seed/upsycle-pending-fiber-${i}/700/700`,
+        })),
+      },
+    },
+  });
+}
+
+// Issue #9 (admin seller approval & user management) requires an ADMIN
+// account to reach /admin at all — there is deliberately no self-serve way
+// to become an admin (that would be a security hole), so this seed row
+// stands in for the out-of-band grant an operator would perform directly
+// against the database in a real environment (e.g. a one-off
+// `INSERT INTO user_roles ...` or a psql session against RDS).
+async function seedAdmin() {
+  console.log("Seeding demo admin user...");
+  const user = await prisma.user.upsert({
+    where: { cognitoSub: "seed-cognito-admin" },
+    update: {},
+    create: {
+      cognitoSub: "seed-cognito-admin",
+      email: "admin@upsycle.example.com",
+      firstName: "Admin",
+      lastName: "Ops",
+    },
+  });
+
+  await prisma.userRole.upsert({
+    where: { userId_role: { userId: user.id, role: Role.ADMIN } },
+    update: {},
+    create: { userId: user.id, role: Role.ADMIN },
+  });
+}
+
 interface SeedProduct {
   sellerIndex: number;
   categorySlug: string;
@@ -236,6 +304,8 @@ async function main() {
   await seedCategories();
   const sellerProfiles = await seedSellers();
   await seedProducts(sellerProfiles);
+  await seedPendingSellerApplication();
+  await seedAdmin();
   console.log("Seed complete.");
 }
 
