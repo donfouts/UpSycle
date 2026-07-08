@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import LogoutButton from "@/components/LogoutButton";
@@ -29,6 +30,11 @@ export default async function AccountPage() {
       <div className="eyebrow">My Account</div>
       <h1 className="auth-title">Welcome back{email ? `, ${email}` : ""}</h1>
       <p className="auth-subtitle">You are signed in to UpSycle Market.</p>
+      <div className="mb-8">
+        <Link href="/account/orders" className="btn-secondary">
+          View Order History
+        </Link>
+      </div>
       <LogoutButton />
     </section>
   );
