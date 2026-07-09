@@ -13,7 +13,12 @@ export interface HostingStackProps extends cdk.StackProps {
 // infra/README.md) containing a GitHub personal access token with `repo` +
 // `admin:repo_hook` scopes, used once by Amplify to authorize its GitHub App
 // connection to donfouts/UpSycle. Never committed to source.
-const GITHUB_TOKEN_SECRET_NAME = "upsycle/amplify/github-access-token";
+//
+// Must be a classic PAT, not a fine-grained one — fine-grained tokens use a
+// different per-repo permission model that doesn't grant the webhook-creation
+// access Amplify's CloudFormation resource needs (`admin:repo_hook`), which
+// fails with "Resource not accessible by personal access token" otherwise.
+const GITHUB_TOKEN_SECRET_NAME = "upsycle/amplify/github-aws-classic";
 
 /**
  * HostingStack

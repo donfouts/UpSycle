@@ -74,13 +74,17 @@ Optional context overrides (defaults shown), e.g. `npx cdk synth -c domainName=e
 ## Manual prerequisites (things this CDK code deliberately does NOT do)
 
 1. **GitHub access token for Amplify** — `HostingStack` reads a GitHub
-   personal access token (scopes: `repo`, `admin:repo_hook`) from a Secrets
-   Manager secret named `upsycle/amplify/github-access-token`, referenced via
-   a CloudFormation dynamic reference (`secretsmanager.Secret.fromSecretNameV2` +
-   `.secretValue.unsafeUnwrap()`) so the token value never appears in code or
-   in the synthesized template. **A human must create this secret manually**
-   (AWS Console or `aws secretsmanager create-secret`) in the target account
-   before `HostingStack` can be deployed.
+   **classic** personal access token (scopes: `repo`, `admin:repo_hook`) from a
+   Secrets Manager secret named `upsycle/amplify/github-aws-classic`,
+   referenced via a CloudFormation dynamic reference
+   (`secretsmanager.Secret.fromSecretNameV2` + `.secretValue.unsafeUnwrap()`)
+   so the token value never appears in code or in the synthesized template.
+   **A human must create this secret manually** (AWS Console or
+   `aws secretsmanager create-secret`) in the target account before
+   `HostingStack` can be deployed. Must be a *classic* token — a fine-grained
+   token fails at deploy time with "Resource not accessible by personal
+   access token" since it doesn't grant `admin:repo_hook`-equivalent webhook
+   access.
 2. **Domain registrar nameserver cutover** — `DnsStack` only creates a
    CDK-managed Route 53 hosted zone for `UpSycleMarket.com`; it does not touch
    the actual domain registrar. Pointing the registrar's nameservers at this
