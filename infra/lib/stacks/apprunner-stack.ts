@@ -131,8 +131,13 @@ export class AppRunnerStack extends cdk.Stack {
         instanceRoleArn: instanceRole.roleArn,
       },
       healthCheckConfiguration: {
-        protocol: "HTTP",
-        path: "/signup", // a static page — doesn't depend on the DB being reachable
+        // TCP (not HTTP): the container demonstrably starts fine (confirmed
+        // via CloudWatch application logs — "✓ Ready in 0ms"), but the HTTP
+        // health check on /signup still failed with no further diagnostic
+        // detail. TCP isolates whether this is a pure port-reachability
+        // issue vs. something HTTP-request-specific; simpler and more
+        // commonly used for App Runner + Next.js besides.
+        protocol: "TCP",
         interval: 10,
         timeout: 5,
         healthyThreshold: 1,
