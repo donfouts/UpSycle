@@ -6,7 +6,7 @@ import { DataStack } from "../lib/stacks/data-stack";
 import { AuthStack } from "../lib/stacks/auth-stack";
 import { StorageStack } from "../lib/stacks/storage-stack";
 import { EmailStack } from "../lib/stacks/email-stack";
-import { HostingStack } from "../lib/stacks/hosting-stack";
+import { AppRunnerStack } from "../lib/stacks/apprunner-stack";
 import { DnsStack } from "../lib/stacks/dns-stack";
 
 const app = new cdk.App();
@@ -23,9 +23,6 @@ const env: cdk.Environment = {
 };
 
 const domainName = app.node.tryGetContext("domainName") ?? "UpSycleMarket.com";
-const githubOwner = app.node.tryGetContext("githubOwner") ?? "donfouts";
-const githubRepo = app.node.tryGetContext("githubRepo") ?? "UpSycle";
-const githubBranch = app.node.tryGetContext("githubBranch") ?? "main";
 
 const networkStack = new NetworkStack(app, "UpSycle-NetworkStack", {
   env,
@@ -55,18 +52,24 @@ const emailStack = new EmailStack(app, "UpSycle-EmailStack", {
   domainName,
 });
 
-const hostingStack = new HostingStack(app, "UpSycle-HostingStack", {
+const appRunnerStack = new AppRunnerStack(app, "UpSycle-AppRunnerStack", {
   env,
-  description: "UpSycle: Amplify Hosting app wired to GitHub for CI/CD (issue #3)",
-  githubOwner,
-  githubRepo,
-  githubBranch,
+  description: "UpSycle: App Runner service running the Next.js app as a Docker container (replaces Amplify Hosting)",
+  dbSecret: dataStack.dbSecret,
+  userPoolId: authStack.userPool.userPoolId,
+  userPoolClientId: authStack.userPoolClient.userPoolClientId,
+  userPoolArn: authStack.userPool.userPoolArn,
+  productPhotosBucket: storageStack.productPhotosBucket,
+  sellerVettingPhotosBucket: storageStack.sellerVettingPhotosBucket,
 });
+appRunnerStack.addDependency(dataStack);
+appRunnerStack.addDependency(authStack);
+appRunnerStack.addDependency(storageStack);
 
 const dnsStack = new DnsStack(app, "UpSycle-DnsStack", {
   env,
-  description: "UpSycle: Route 53 hosted zone for UpSycleMarket.com + record to Amplify app",
+  description: "UpSycle: Route 53 hosted zone for UpSycleMarket.com + record to the App Runner service",
   domainName,
-  amplifyDefaultDomain: hostingStack.defaultDomain,
+  targetDomain: appRunnerStack.serviceUrl,
 });
-dnsStack.addDependency(hostingStack);
+dnsStack.addDependency(appRunnerStack);

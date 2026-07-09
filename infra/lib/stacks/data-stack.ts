@@ -12,24 +12,23 @@ export interface DataStackProps extends cdk.StackProps {
  *
  * RDS PostgreSQL db.t4g.micro, single-AZ, 20GB gp3.
  *
- * IMPORTANT — publicly accessible by design, not an oversight: this app's
- * compute (AWS Amplify Hosting's Next.js SSR, see HostingStack) has no VPC
- * attachment option (`AWS::Amplify::App` exposes no VPC config at all), so a
- * PRIVATE_ISOLATED-subnet-only RDS instance would be unreachable by the
- * deployed app on every request, not just for one-off migrations. Given
- * Amplify's compute has no static egress IP to scope an ingress rule to, the
- * security group allows Postgres from anywhere and access is protected
- * solely by the strong auto-generated Secrets Manager password — the
- * standard tradeoff for serverless-hosting + RDS setups without VPC peering.
- * Confirmed with the project owner before deploying (see issue history).
- * Revisit if/when the app moves to VPC-attachable compute (e.g. Fargate) or
- * Aurora Serverless's Data API.
+ * IMPORTANT — publicly accessible by design, not an oversight: this was
+ * originally required because AWS Amplify Hosting (the compute layer before
+ * the move to App Runner, see apprunner-stack.ts) had no VPC attachment
+ * option at all. App Runner *does* support VPC connectivity via a VPC
+ * Connector, so a fully private RDS instance is possible now — left public
+ * for the moment since it's already deployed, seeded, and confirmed
+ * working; revisit and tighten to a VPC Connector + private subnet as a
+ * follow-up hardening pass. Access is protected solely by the strong
+ * auto-generated Secrets Manager password in the meantime.
  *
  * Credentials are generated and stored in Secrets Manager by
  * `rds.DatabaseInstance` automatically (via `credentials: rds.Credentials.fromGeneratedSecret(...)`)
- * — never hardcoded here. The app's `DATABASE_URL` env var (see prisma/schema.prisma)
- * should be composed from this secret at runtime (e.g. Amplify env var wired to
- * the secret ARN, or read directly by the app/Lambda via Secrets Manager SDK).
+ * — never hardcoded here. AppRunnerStack wires individual fields from this
+ * secret (host/port/username/password/dbname) directly into the container's
+ * environment via App Runner's native `runtimeEnvironmentSecrets`, and
+ * lib/prisma.ts composes the full `DATABASE_URL` connection string from
+ * them at startup.
  *
  * Matches infrastructure-plan.md: ~$15/mo (compute + storage/backup).
  */

@@ -11,14 +11,9 @@ Full design rationale lives in
 [`../../Claude_output/tech-stack-recommendation.md`](../../Claude_output/tech-stack-recommendation.md).
 Read those first — this README assumes familiarity with them.
 
-> ## ⚠️ DO NOT `cdk deploy` WITHOUT A HUMAN CONFIRMING AWS BILLING IMPLICATIONS FIRST
->
-> This code has been synthesized (`cdk synth`) and reviewed, but **never deployed**.
-> `cdk deploy` creates real, billed AWS resources (RDS, Amplify, CloudFront, Route 53,
-> etc.). Do not run `cdk deploy`, `cdk bootstrap` against a production account, or
-> any AWS action beyond read-only calls (`cdk synth`, `cdk diff`, `aws sts
-> get-caller-identity`) without explicit sign-off from a human who understands
-> the cost implications (see the cost table below and in `infrastructure-plan.md`).
+**Status: deployed and live.** All stacks below (except `DnsStack`) are
+running in the target AWS account (`us-west-2`). Any `cdk deploy` from here
+on modifies a real, billed, live environment — treat changes accordingly.
 
 ## Stacks
 
@@ -33,19 +28,38 @@ limitations, not gaps in this tagging setup; every taggable resource type is tag
 
 | Stack | Purpose |
 |---|---|
-| `UpSycle-NetworkStack` | VPC with only a `PRIVATE_ISOLATED` subnet for RDS (no NAT Gateway, no Elastic IP) plus a free S3 Gateway VPC Endpoint. A `PUBLIC` subnet exists only because CDK's VPC construct requires at least one internet-gateway-routed subnet to synth; nothing is deployed into it. |
-| `UpSycle-DataStack` | RDS PostgreSQL `db.t4g.micro`, single-AZ, 20GB gp3, storage-encrypted, in NetworkStack's private subnet. Credentials are auto-generated into Secrets Manager (`upsycle/rds/postgres-admin`) — never hardcoded. |
+| `UpSycle-NetworkStack` | VPC with a `PUBLIC` subnet (RDS lives here, see DataStack) and an unused `PRIVATE_ISOLATED` subnet kept for any future resource that should never be internet-reachable. No NAT Gateway, no Elastic IP. Free S3 Gateway VPC Endpoint. |
+| `UpSycle-DataStack` | RDS PostgreSQL `db.t4g.micro`, single-AZ, 20GB gp3, storage-encrypted, publicly accessible (see the stack's doc comment for why). Credentials are auto-generated into Secrets Manager (`upsycle/rds/postgres-admin`) — never hardcoded. |
 | `UpSycle-AuthStack` | Cognito User Pool (Essentials tier) with `buyer` / `seller` / `admin` groups (a user can belong to more than one, satisfying Requirement.MD's multi-role rule) and a public (no-secret) User Pool Client for the Next.js app, configured for Authorization Code + PKCE. |
 | `UpSycle-StorageStack` | Two S3 buckets — product photos (public via CloudFront + Origin Access Control, bucket itself stays private) and seller vetting sample photos (private, admin-review only, never fronted by CloudFront) — plus the CloudFront distribution. |
 | `UpSycle-EmailStack` | SES domain identity for `UpSycleMarket.com` with Easy DKIM, for OTP account-recovery email and seller-referral invites. |
-| `UpSycle-HostingStack` | Amplify Hosting app wired directly to GitHub (`donfouts/UpSycle`, `main` branch, monorepo root `Web/UpSycle`). Amplify's native GitHub integration is the CI/CD wiring for issue #3 — no separate GitHub Actions workflow needed. |
-| `UpSycle-DnsStack` | Route 53 hosted zone for `UpSycleMarket.com` plus a `www` CNAME to the Amplify app's default domain. |
+| `UpSycle-AppRunnerStack` | AWS App Runner service running the Next.js app as a Docker container (built from `../Dockerfile` via `DockerImageAsset`, pushed to an auto-managed ECR repo during `cdk deploy`). Replaces the original Amplify Hosting design — see "Why App Runner, not Amplify" below. |
+| `UpSycle-DnsStack` | Route 53 hosted zone for `UpSycleMarket.com` plus a `www` CNAME to the App Runner service's default domain. **Not yet deployed** — no need until the domain cutover (issue #22) is actually happening. |
 
 Dependency order (enforced via `addDependency` in `bin/infra.ts`):
-`NetworkStack → DataStack`, `HostingStack → DnsStack`. The rest are independent
-of each other.
+`NetworkStack → DataStack`, `DataStack/AuthStack/StorageStack → AppRunnerStack → DnsStack`.
+`EmailStack` is independent.
 
-## How to `cdk synth`
+## Why App Runner, not Amplify Hosting
+
+The original design (see git history on the now-deleted `hosting-stack.ts`)
+used AWS Amplify Hosting's "Web Compute" platform for Next.js SSR. After
+extensive troubleshooting, it turned out Amplify's Web Compute runtime never
+reliably delivered environment variables — or IAM role credentials — to the
+actual running Next.js process, across every configuration tried:
+app-level env vars, branch-level env vars, an IAM service role for SSM
+access, a console-based edit + explicit redeploy, an IAM "compute role"
+granted Secrets Manager access (failed with `CredentialsProviderError` — that
+runtime doesn't expose IAM credentials via the standard AWS SDK chain at
+all), and even a full fresh recreation of the Amplify app. Every DB-touching
+route 500'd with "Environment variable not found: DATABASE_URL" the entire
+time, despite build-time env vars being reliably present.
+
+App Runner uses the same well-established credential/env-var delivery
+mechanism as ECS/Fargate task roles. Confirmed working locally via
+`docker run` against the real RDS instance before writing `apprunner-stack.ts`.
+
+## How to `cdk synth` / `cdk deploy`
 
 ```bash
 cd infra
@@ -54,75 +68,57 @@ npx cdk synth              # synth every stack
 npx cdk synth UpSycle-DataStack   # synth a single stack
 npx cdk list                # list all stack ids
 npx cdk diff                # read-only: compare synthesized templates against deployed stacks (safe)
+npx cdk deploy <stack-id> --require-approval never   # real deploy — see the status note above
 ```
 
-`cdk synth` (and `cdk diff`) make at most a read-only AWS API call (to look up
-availability zones for the target account/region) if AWS credentials are
-present in the environment — this does not create or modify any billed
-resource. `cdk.context.json` (the cache of that lookup) is gitignored since
-it's environment/account-specific.
+`UpSycle-AppRunnerStack` requires Docker running locally (`DockerImageAsset`
+builds and pushes the image as part of synth/deploy).
 
 Optional context overrides (defaults shown), e.g. `npx cdk synth -c domainName=example.com`:
 
 | Context key | Default |
 |---|---|
 | `domainName` | `UpSycleMarket.com` |
-| `githubOwner` | `donfouts` |
-| `githubRepo` | `UpSycle` |
-| `githubBranch` | `main` |
 
-## Manual prerequisites (things this CDK code deliberately does NOT do)
+## Manual prerequisites / follow-ups
 
-1. **GitHub access token for Amplify** — `HostingStack` reads a GitHub
-   **classic** personal access token (scopes: `repo`, `admin:repo_hook`) from a
-   Secrets Manager secret named `upsycle/amplify/github-aws-classic2`,
-   referenced via a CloudFormation dynamic reference
-   (`secretsmanager.Secret.fromSecretNameV2` + `.secretValue.unsafeUnwrap()`)
-   so the token value never appears in code or in the synthesized template.
-   **A human must create this secret manually** (AWS Console or
-   `aws secretsmanager create-secret`) in the target account before
-   `HostingStack` can be deployed. Must be a *classic* token — a fine-grained
-   token fails at deploy time with "Resource not accessible by personal
-   access token" since it doesn't grant `admin:repo_hook`-equivalent webhook
-   access.
-2. **`DATABASE_URL` Amplify environment variable** — deliberately not set by
-   CDK (see the doc comment in `hosting-stack.ts` on why: composing it from
-   DataStack's secret would write the raw RDS password into the synthesized
-   CloudFormation template). Set it out-of-band after every deploy that
-   touches `UpSycle-HostingStack` (CloudFormation resets `AWS::Amplify::App`'s
-   `environmentVariables` to exactly what's in code on every stack update,
-   silently dropping anything set only via the CLI):
-   ```
-   aws amplify update-app --app-id <app-id> --region <region> \
-     --environment-variables AMPLIFY_DIFF_DEPLOY="false",COGNITO_REGION="<region>",COGNITO_USER_POOL_ID="<pool-id>",COGNITO_USER_POOL_CLIENT_ID="<client-id>",PHOTOS_BUCKET_NAME="<bucket>",DATABASE_URL="<connection-string>"
-   ```
-   Then trigger a fresh build (`aws amplify start-job --job-type RELEASE`) so
-   the running SSR compute actually picks up the new value.
-3. **Domain registrar nameserver cutover** — `DnsStack` only creates a
-   CDK-managed Route 53 hosted zone for `UpSycleMarket.com`; it does not touch
-   the actual domain registrar. Pointing the registrar's nameservers at this
-   hosted zone's NS records (`HostedZoneId` / `NameServers` stack outputs) is
+1. **CI/CD** — there's no GitHub-triggered auto-deploy yet (unlike Amplify's
+   native GitHub integration). `AppRunnerStack.autoDeploymentsEnabled` is
+   `false`; deploying a code change means running `cdk deploy
+   UpSycle-AppRunnerStack` again, which rebuilds the Docker image and updates
+   the service. A GitHub Actions workflow that runs `cdk deploy` on push to
+   `main` is the natural next step (tracked alongside issue #25's CI check).
+2. **Domain registrar nameserver cutover** — `DnsStack` isn't deployed yet.
+   When it is, it will only create a CDK-managed Route 53 hosted zone for
+   `UpSycleMarket.com`; it does not touch the actual domain registrar.
+   Pointing the registrar's nameservers at the hosted zone's NS records is
    tracked separately in **issue #22** and is a deliberate manual step — it
    affects a live domain and should happen at a chosen time to avoid
    propagation-window downtime.
-4. **SES production access** — new SES accounts start in the sandbox (can
+3. **SES production access** — new SES accounts start in the sandbox (can
    only send to verified addresses). Requesting production sending access is
    a manual step via the AWS Support Center, done once `EmailStack`'s domain
-   identity is verified (which itself requires #3 above, since verification
+   identity is verified (which itself requires #2 above, since verification
    is via DNS records in the now-authoritative Route 53 zone).
-5. **Cognito Hosted UI domain prefix** (`upsycle-auth`) must be globally
+4. **Cognito Hosted UI domain prefix** (`upsycle-auth`) must be globally
    unique within the target AWS region — if deployment fails on that
    resource, change `domainPrefix` in `auth-stack.ts` and redeploy.
+5. **RDS is publicly accessible** — see `DataStack`'s doc comment. App
+   Runner supports VPC Connectors (unlike Amplify), so moving RDS to a
+   private subnet + VPC Connector is a viable hardening follow-up, just not
+   done yet since the public+password-protected setup is already deployed,
+   seeded, and confirmed working.
 
 ## Estimated monthly cost
 
-Matches `infrastructure-plan.md`'s **~$20–40/mo** estimate for MVP-scale
-traffic (roughly 500 MAU, 50 active sellers, low thousands of page views/day):
-RDS (~$15) dominates; Amplify, Lambda, S3, CloudFront, Cognito, and SES are
-all expected to stay in their AWS free tiers at this traffic level; Route 53
-adds ~$1.50/mo. See the full cost table and risk list (NAT Gateway, RDS
-Multi-AZ, CloudFront/S3 egress at scale, Cognito MAU overage) in
-`infrastructure-plan.md`.
+Roughly **$25–50/mo** at MVP-scale traffic (roughly 500 MAU, 50 active
+sellers, low thousands of page views/day) — higher than the original
+Amplify-based ~$20-40/mo estimate in `infrastructure-plan.md`, since App
+Runner has no true scale-to-zero (unlike Amplify's serverless compute
+model): RDS (~$15) and App Runner at its smallest size (0.25 vCPU / 0.5 GB,
+~$12-15/mo always-on) are the two dominant line items; S3, CloudFront,
+Cognito, and SES are all expected to stay in their AWS free tiers at this
+traffic level; Route 53 (once `DnsStack` deploys) adds ~$1.50/mo.
 
 ## What was deliberately deferred
 
@@ -130,20 +126,10 @@ Multi-AZ, CloudFront/S3 egress at scale, Cognito MAU overage) in
   (image processing on upload, Stripe webhook handling) mentioned in the infra
   plan — no such Lambda functions exist in the app yet to deploy; add a
   `ComputeStack` when that code exists.
-- No CloudFront distribution in front of Amplify itself — Amplify Hosting
-  already includes CloudFront under the hood for its own hosting/CDN, so a
-  second explicit distribution isn't needed for the app itself (only the
-  product-photos S3 bucket gets its own explicit `Distribution` in
-  `StorageStack`).
 - No Interface VPC Endpoints (e.g. for SES) — per the infra plan, only add
   one if a future Lambda genuinely needs both RDS and a public AWS API from
   inside the VPC; none of the current stacks need this.
-- No custom Amplify domain association (`UpSycleMarket.com` → the Amplify
-  app) — blocked on the manual registrar cutover (#22) described above;
-  `DnsStack` only wires the Amplify default `*.amplifyapp.com` domain via a
-  `www` CNAME for now.
-- Not verified against a real AWS account: `cdk deploy`, actual resource
-  creation, actual monthly billing, actual Amplify GitHub App authorization
-  flow, actual SES domain verification/DKIM DNS propagation, actual Cognito
-  Hosted UI domain-prefix availability. All of this requires real AWS
-  credentials/deployment, which this task was explicitly scoped to avoid.
+- No custom domain association (`UpSycleMarket.com` → the App Runner
+  service) — blocked on the manual registrar cutover (#22) described above.
+- No GitHub Actions CI/CD for App Runner deploys yet (see prerequisite #1
+  above).

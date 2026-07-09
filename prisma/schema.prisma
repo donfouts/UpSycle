@@ -13,16 +13,15 @@
 // This schema stores only a Cognito user id (`cognitoSub`) on User — no password field.
 
 generator client {
-  provider      = "prisma-client-js"
-  // "native" keeps local dev/build working; "rhel-openssl-3.0.x" targets
-  // Amazon Linux 2023's OpenSSL version, which is what AWS Lambda (and thus
-  // Amplify Hosting's Next.js SSR "Web Compute" runtime) uses. Without this,
-  // `prisma generate` during the Amplify build only produces a query-engine
-  // binary for the build container, which doesn't match the actual runtime —
-  // Prisma Client then fails to initialize at request time (every DB-touching
-  // route 500s with no build-time error, since `next build` never invokes the
-  // engine, only static pages succeed).
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider = "prisma-client-js"
+  // "native" is correct now that the app deploys as a Docker container
+  // (see infra/lib/stacks/apprunner-stack.ts + Dockerfile): `prisma
+  // generate` runs inside the same build stage/base image the app actually
+  // runs in, so there's no cross-platform binary mismatch the way there was
+  // deploying to Amplify Hosting's Lambda-based "Web Compute" runtime
+  // (which needed an explicit rhel-openssl-3.0.x target — no longer
+  // applicable, see git history for that saga).
+  binaryTargets = ["native"]
 }
 
 datasource db {

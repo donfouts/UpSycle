@@ -4,14 +4,16 @@ import { Construct } from "constructs";
 
 export interface DnsStackProps extends cdk.StackProps {
   domainName: string;
-  amplifyDefaultDomain: string;
+  targetDomain: string;
 }
 
 /**
  * DnsStack
  *
  * Creates the Route 53 hosted zone for UpSycleMarket.com and a CNAME record
- * pointing the apex/`www` at the Amplify app's default domain.
+ * pointing `www` at the app's default domain (App Runner's service URL —
+ * previously Amplify Hosting's default domain, before the move to App
+ * Runner, see apprunner-stack.ts).
  *
  * IMPORTANT — this only creates a CDK-managed hosted zone; it does NOT
  * transfer the domain or update the registrar's nameservers. That cutover
@@ -33,15 +35,14 @@ export class DnsStack extends cdk.Stack {
       comment: "UpSycle marketplace — managed by CDK. See issue #22 for registrar nameserver cutover.",
     });
 
-    // Amplify's default domain only supports CNAME (not ALIAS at the apex
-    // through this construct), so `www` is the CNAME target; the apex record
-    // is left for a human to wire once a custom domain association is added
-    // in Amplify (which requires the hosted zone to already be authoritative
-    // for the domain — chicken/egg with the issue #22 cutover).
+    // The apex record is left for a human to wire once a custom domain
+    // association is added (which requires the hosted zone to already be
+    // authoritative for the domain — chicken/egg with the issue #22
+    // cutover).
     new route53.CnameRecord(this, "WwwRecord", {
       zone: this.hostedZone,
       recordName: "www",
-      domainName: props.amplifyDefaultDomain,
+      domainName: props.targetDomain,
       ttl: cdk.Duration.minutes(5),
     });
 
