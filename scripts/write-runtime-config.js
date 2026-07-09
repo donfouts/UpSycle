@@ -9,7 +9,15 @@
 // hard 502 crash previously, likely a bundling/module-resolution issue.
 const fs = require("fs");
 
+console.log("write-runtime-config: DATABASE_URL present =", Boolean(process.env.DATABASE_URL));
+
 fs.writeFileSync(
   ".next/generated-runtime-config.json",
   JSON.stringify({ databaseUrl: process.env.DATABASE_URL || null }),
+);
+
+console.log(
+  "write-runtime-config: wrote",
+  fs.statSync(".next/generated-runtime-config.json").size,
+  "bytes to .next/generated-runtime-config.json",
 );
