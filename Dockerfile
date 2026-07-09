@@ -49,4 +49,14 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+# App Runner's health check failed against this image with the container
+# demonstrably running and "Ready" (confirmed via CloudWatch application
+# logs) — the log showed Next.js's standalone server bound to the
+# container's specific internal hostname rather than the wildcard address,
+# meaning something at container-start time (most likely App Runner
+# injecting its own HOSTNAME env var, a known pattern on several container
+# platforms) was overriding this Dockerfile's `ENV HOSTNAME`. Forcing it
+# again directly in CMD's shell invocation takes precedence over anything
+# inherited from the platform, since it's set at the exact moment the
+# process starts rather than baked into the image's base environment.
+CMD ["sh", "-c", "HOSTNAME=0.0.0.0 node server.js"]
