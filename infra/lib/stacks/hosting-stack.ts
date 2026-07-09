@@ -28,8 +28,13 @@ const GITHUB_TOKEN_SECRET_NAME = "upsycle/amplify/github-aws-classic2";
  * GitHub integration auto-builds and deploys on every push to `main` — no
  * separate GitHub Actions workflow needed.
  *
- * Root directory is `Web/UpSycle` inside the monorepo-style GitHub repo,
- * matching CLAUDE.md's "save code in ./Web/UpSycle/" convention.
+ * NOTE: `Web/UpSycle` in CLAUDE.md refers only to the *local* disk layout
+ * (this checkout lives at that path on the dev machine) — the GitHub repo
+ * `donfouts/UpSycle` itself has the Next.js app at its root (confirmed via
+ * `gh api repos/donfouts/UpSycle/contents`), not nested under a `Web/UpSycle`
+ * subdirectory. An earlier version of this stack wrongly treated it as a
+ * monorepo (`appRoot: Web/UpSycle`), which failed every build with "Build
+ * path does not exist" since that path doesn't exist in the actual repo.
  *
  * Cost per infra plan: $0-8/mo, likely $0 at MVP volume (free tier covers
  * 1,000 build-min, 5GB storage, 15GB transfer/mo).
@@ -57,7 +62,6 @@ export class HostingStack extends cdk.Stack {
       accessToken: githubToken.secretValue.unsafeUnwrap(),
       platform: "WEB_COMPUTE", // Next.js SSR support (per tech-stack-recommendation.md)
       environmentVariables: [
-        { name: "AMPLIFY_MONOREPO_APP_ROOT", value: "Web/UpSycle" },
         { name: "AMPLIFY_DIFF_DEPLOY", value: "false" },
         // DATABASE_URL / Cognito / S3 / SES app-runtime config are wired as
         // Amplify env vars pointing at the other stacks' outputs once this
@@ -66,25 +70,23 @@ export class HostingStack extends cdk.Stack {
       ],
       buildSpec: [
         "version: 1",
-        "applications:",
-        "  - appRoot: Web/UpSycle",
-        "    frontend:",
-        "      phases:",
-        "        preBuild:",
-        "          commands:",
-        "            - npm ci",
-        "            - npx prisma generate",
-        "        build:",
-        "          commands:",
-        "            - npm run build",
-        "      artifacts:",
-        "        baseDirectory: .next",
-        "        files:",
-        "          - '**/*'",
-        "      cache:",
-        "        paths:",
-        "          - node_modules/**/*",
-        "          - .next/cache/**/*",
+        "frontend:",
+        "  phases:",
+        "    preBuild:",
+        "      commands:",
+        "        - npm ci",
+        "        - npx prisma generate",
+        "    build:",
+        "      commands:",
+        "        - npm run build",
+        "  artifacts:",
+        "    baseDirectory: .next",
+        "    files:",
+        "      - '**/*'",
+        "  cache:",
+        "    paths:",
+        "      - node_modules/**/*",
+        "      - .next/cache/**/*",
       ].join("\n"),
       customRules: [
         {
