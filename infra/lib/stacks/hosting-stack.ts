@@ -57,25 +57,29 @@ export class HostingStack extends cdk.Stack {
       GITHUB_TOKEN_SECRET_NAME
     );
 
-    // KNOWN UNRESOLVED ISSUE: Amplify Hosting's app/branch-level "environment
-    // variables" are confirmed present at build time (verified via a
-    // build-log echo) but never reach the deployed SSR compute at request
-    // time — every DB-touching route 500s with "Environment variable not
-    // found: DATABASE_URL" regardless of configuration: app-level vars,
-    // branch-level vars, an IAM service role for SSM access, a console-based
-    // edit + explicit "Redeploy this version", an IAM "compute role" granted
+    // KNOWN UNRESOLVED ISSUE — DATABASE_URL has no working delivery path to
+    // the deployed SSR compute. Amplify Hosting's app/branch-level
+    // "environment variables" are confirmed present at build time (verified
+    // via a build-log echo) but never reach the deployed compute at request
+    // time, across every configuration tried: app-level vars, branch-level
+    // vars, an IAM service role for SSM access, a console-based edit +
+    // explicit "Redeploy this version", an IAM "compute role" granted
     // Secrets Manager read access (fails with CredentialsProviderError — this
     // runtime doesn't expose IAM credentials via the standard AWS SDK chain
-    // at all), and even a full fresh recreation of the Amplify app. Root
-    // cause unconfirmed — possibly specific to CDK/CloudFormation-created
-    // Amplify apps vs console-created ones, worth an AWS Support case if this
-    // next attempt doesn't work either. Current approach: bake the resolved
-    // DATABASE_URL into `.next/generated-runtime-config.json` during the
-    // build (see the buildSpec below + instrumentation.ts) and read it via
-    // plain `fs` at server startup — a static import of a similar generated
-    // file previously caused a harder 502 crash, so this deliberately avoids
-    // that. Non-sensitive config (Cognito, S3) is baked in separately via
-    // next.config.ts's `env`.
+    // at all), a full fresh recreation of the Amplify app, and baking values
+    // into a generated file for instrumentation.ts to read (the deployed
+    // runtime's cwd doesn't contain anything placed loosely in `.next/` at
+    // build time — Amplify's SSR packaging only preserves recognized Next.js
+    // build outputs). One more idea — baking DATABASE_URL into
+    // next.config.ts's `env` the same way Cognito/S3 are handled — was
+    // caught and abandoned before being committed: that mechanism inlines
+    // values into BOTH server and CLIENT bundles, which would have shipped
+    // the live RDS password to every visitor's browser. Do not attempt that
+    // again. Non-sensitive config (Cognito, S3) IS safely baked in via
+    // next.config.ts's `env`, confirmed reasonable since those values are
+    // normally client-exposed anyway (User Pool/Client IDs, a bucket name).
+    // Root cause of the DATABASE_URL issue is unconfirmed — likely worth an
+    // AWS Support case.
     const amplifyServiceRole = new iam.Role(this, "AmplifyServiceRole", {
       assumedBy: new iam.ServicePrincipal("amplify.amazonaws.com"),
     });
@@ -98,7 +102,6 @@ export class HostingStack extends cdk.Stack {
         "    build:",
         "      commands:",
         "        - npm run build",
-        "        - node scripts/write-runtime-config.js",
         "  artifacts:",
         "    baseDirectory: .next",
         "    files:",

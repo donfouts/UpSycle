@@ -5,9 +5,14 @@ import type { NextConfig } from "next";
 // Amplify's app/branch-level env vars are confirmed present in build logs
 // but never reach the deployed SSR compute at request time (build-time
 // works, runtime doesn't — verified, not yet resolved on AWS's side).
-// DATABASE_URL is NOT handled this way since it's sensitive — see
-// instrumentation.ts, which fetches it from Secrets Manager at server
-// startup instead.
+//
+// DATABASE_URL must NEVER be added here: this `env` config inlines values
+// into BOTH server and CLIENT bundles (it's Next.js's mechanism for
+// exposing build-time config to browser code), so the live RDS password
+// would ship to every visitor's browser. That mistake was caught before
+// being committed — see infra/lib/stacks/hosting-stack.ts's doc comment for
+// the full history of what's been tried for DATABASE_URL specifically (still
+// unresolved as of this comment).
 const nextConfig: NextConfig = {
   env: {
     COGNITO_REGION: "us-west-2",
