@@ -8,7 +8,6 @@ export interface HostingStackProps extends cdk.StackProps {
   githubOwner: string;
   githubRepo: string;
   githubBranch: string;
-  dbSecret: secretsmanager.ISecret;
 }
 
 // Name of the Secrets Manager secret a human must create manually (see
@@ -62,31 +61,24 @@ export class HostingStack extends cdk.Stack {
     // confirmed present at build time (verified via build-log echo) but
     // never reach the deployed SSR compute at request time — every
     // DB-touching route 500'd with "Environment variable not found:
-    // DATABASE_URL" across every combination tried: app-level vars,
+    // DATABASE_URL" across every configuration tried: app-level vars,
     // branch-level vars, an IAM service role for SSM access, and a
-    // console-based edit + explicit "Redeploy this version". Root cause
-    // unconfirmed (possibly specific to CDK/CloudFormation-created Amplify
-    // apps vs console-created ones). Rather than keep depending on that,
-    // non-sensitive config (Cognito, S3) is baked in at build time via
-    // next.config.ts's `env`, and the sensitive DB connection string is
-    // fetched directly from Secrets Manager at server startup (see
-    // instrumentation.ts) using the compute role below — bypassing
-    // Amplify's env var mechanism entirely for anything that matters.
+    // console-based edit + explicit "Redeploy this version". A compute
+    // role (dbSecret.grantRead) didn't work either — the runtime doesn't
+    // expose IAM credentials via the standard AWS SDK chain at all
+    // (CredentialsProviderError). Root cause unconfirmed (possibly specific
+    // to CDK/CloudFormation-created Amplify apps vs console-created ones).
+    // Since build-time env vars DO work reliably, the actual fix bakes the
+    // resolved DATABASE_URL into a real source file during the build (see
+    // the buildSpec step below + instrumentation.ts) instead of depending on
+    // either runtime mechanism. Non-sensitive config (Cognito, S3) is baked
+    // in separately via next.config.ts's `env`.
     const amplifyServiceRole = new iam.Role(this, "AmplifyServiceRole", {
       assumedBy: new iam.ServicePrincipal("amplify.amazonaws.com"),
     });
 
-    // The actual runtime execution role for the deployed Next.js SSR
-    // compute (distinct from amplifyServiceRole above, which is only for
-    // Amplify's own build/deploy orchestration) — see instrumentation.ts.
-    const computeRole = new iam.Role(this, "AmplifyComputeRole", {
-      assumedBy: new iam.ServicePrincipal("amplify.amazonaws.com"),
-    });
-    props.dbSecret.grantRead(computeRole);
-
     this.app = new amplify.CfnApp(this, "UpSycleAmplifyApp", {
       iamServiceRole: amplifyServiceRole.roleArn,
-      computeRoleArn: computeRole.roleArn,
       name: "upsycle-web",
       repository: `https://github.com/${props.githubOwner}/${props.githubRepo}`,
       accessToken: githubToken.secretValue.unsafeUnwrap(),
@@ -100,6 +92,7 @@ export class HostingStack extends cdk.Stack {
         "      commands:",
         "        - npm ci",
         "        - npx prisma generate",
+        "        - node scripts/write-runtime-config.js",
         "    build:",
         "      commands:",
         "        - npm run build",

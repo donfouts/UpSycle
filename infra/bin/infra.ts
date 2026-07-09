@@ -61,9 +61,7 @@ const hostingStack = new HostingStack(app, "UpSycle-HostingStack", {
   githubOwner,
   githubRepo,
   githubBranch,
-  dbSecret: dataStack.dbSecret,
 });
-hostingStack.addDependency(dataStack);
 
 const dnsStack = new DnsStack(app, "UpSycle-DnsStack", {
   env,
