@@ -1,5 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as amplify from "aws-cdk-lib/aws-amplify";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 
@@ -59,7 +60,23 @@ export class HostingStack extends cdk.Stack {
       GITHUB_TOKEN_SECRET_NAME
     );
 
+    // Amplify Hosting doesn't store app-level "environment variables" as
+    // literal Lambda env vars — it writes each one to SSM Parameter Store
+    // under /amplify/<appId>/<branch>/ and reads them back into process.env
+    // at build AND runtime via this service role. Without it, that read
+    // fails silently (build log: "Failed to set up process.env.secrets", a
+    // WARNING not an error) and every custom env var — Cognito, S3, and
+    // DATABASE_URL alike — is simply absent from process.env, causing every
+    // DB-touching route to 500 with no build-time signal at all. There's no
+    // way to scope the SSM path to this specific app before the app exists
+    // (the appId is only known after CfnApp is created), so the policy is
+    // attached after construction, referencing `this.app.attrAppId`.
+    const amplifyServiceRole = new iam.Role(this, "AmplifyServiceRole", {
+      assumedBy: new iam.ServicePrincipal("amplify.amazonaws.com"),
+    });
+
     this.app = new amplify.CfnApp(this, "UpSycleAmplifyApp", {
+      iamServiceRole: amplifyServiceRole.roleArn,
       name: "upsycle-web",
       repository: `https://github.com/${props.githubOwner}/${props.githubRepo}`,
       accessToken: githubToken.secretValue.unsafeUnwrap(),
@@ -119,6 +136,15 @@ export class HostingStack extends cdk.Stack {
         },
       ],
     });
+
+    amplifyServiceRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["ssm:GetParametersByPath", "ssm:GetParameters", "ssm:GetParameter"],
+        resources: [
+          `arn:aws:ssm:${this.region}:${this.account}:parameter/amplify/${this.app.attrAppId}/*`,
+        ],
+      })
+    );
 
     this.mainBranch = new amplify.CfnBranch(this, "MainBranch", {
       appId: this.app.attrAppId,
