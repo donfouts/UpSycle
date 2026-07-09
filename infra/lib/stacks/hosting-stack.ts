@@ -7,6 +7,9 @@ export interface HostingStackProps extends cdk.StackProps {
   githubOwner: string;
   githubRepo: string;
   githubBranch: string;
+  userPoolId: string;
+  userPoolClientId: string;
+  photosBucketName: string;
 }
 
 // Name of the Secrets Manager secret a human must create manually (see
@@ -63,10 +66,30 @@ export class HostingStack extends cdk.Stack {
       platform: "WEB_COMPUTE", // Next.js SSR support (per tech-stack-recommendation.md)
       environmentVariables: [
         { name: "AMPLIFY_DIFF_DEPLOY", value: "false" },
-        // DATABASE_URL / Cognito / S3 / SES app-runtime config are wired as
-        // Amplify env vars pointing at the other stacks' outputs once this
-        // app has deployed once (manual/console step, or a follow-up CDK
-        // custom resource) — deliberately not hardcoded here.
+        { name: "COGNITO_REGION", value: this.region },
+        { name: "COGNITO_USER_POOL_ID", value: props.userPoolId },
+        { name: "COGNITO_USER_POOL_CLIENT_ID", value: props.userPoolClientId },
+        { name: "PHOTOS_BUCKET_NAME", value: props.photosBucketName },
+        // AWS_REGION is a reserved-prefix name Amplify rejects; the app code
+        // already falls back to COGNITO_REGION when it's unset (see lib/s3.ts).
+        // STRIPE_* keys are deliberately not set here — no real Stripe
+        // account exists yet; checkout will error until those are added.
+        //
+        // DATABASE_URL is deliberately NOT declared here. It contains the RDS
+        // admin password, and composing it from DataStack's secret (username
+        // + password + host interpolated into one connection-string token)
+        // would require unsafeUnwrap()-ing the raw secret value into this
+        // array, which `cdk synth` would then write into the synthesized
+        // CloudFormation template on disk in plaintext — an unwanted, hard-to-
+        // walk-back credential exposure, unlike the GitHub token above (whose
+        // single-field SecretValue resolves to a proper CloudFormation
+        // dynamic reference, never a literal value in the template).
+        // DATABASE_URL must instead be set out-of-band via
+        // `aws amplify update-app --environment-variables ...` after every
+        // deploy that touches this CfnApp — CloudFormation fully owns
+        // AWS::Amplify::App's environmentVariables, so it silently resets to
+        // exactly this array (i.e. drops DATABASE_URL) on every stack update.
+        // See infra/README.md for the exact command.
       ],
       buildSpec: [
         "version: 1",

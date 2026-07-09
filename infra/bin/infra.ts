@@ -61,7 +61,12 @@ const hostingStack = new HostingStack(app, "UpSycle-HostingStack", {
   githubOwner,
   githubRepo,
   githubBranch,
+  userPoolId: authStack.userPool.userPoolId,
+  userPoolClientId: authStack.userPoolClient.userPoolClientId,
+  photosBucketName: storageStack.productPhotosBucket.bucketName,
 });
+hostingStack.addDependency(authStack);
+hostingStack.addDependency(storageStack);
 
 const dnsStack = new DnsStack(app, "UpSycle-DnsStack", {
   env,

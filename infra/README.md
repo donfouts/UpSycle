@@ -85,24 +85,31 @@ Optional context overrides (defaults shown), e.g. `npx cdk synth -c domainName=e
    token fails at deploy time with "Resource not accessible by personal
    access token" since it doesn't grant `admin:repo_hook`-equivalent webhook
    access.
-2. **Domain registrar nameserver cutover** — `DnsStack` only creates a
+2. **`DATABASE_URL` Amplify environment variable** — deliberately not set by
+   CDK (see the doc comment in `hosting-stack.ts` on why: composing it from
+   DataStack's secret would write the raw RDS password into the synthesized
+   CloudFormation template). Set it out-of-band after every deploy that
+   touches `UpSycle-HostingStack` (CloudFormation resets `AWS::Amplify::App`'s
+   `environmentVariables` to exactly what's in code on every stack update,
+   silently dropping anything set only via the CLI):
+   ```
+   aws amplify update-app --app-id <app-id> --region <region> \
+     --environment-variables AMPLIFY_DIFF_DEPLOY="false",COGNITO_REGION="<region>",COGNITO_USER_POOL_ID="<pool-id>",COGNITO_USER_POOL_CLIENT_ID="<client-id>",PHOTOS_BUCKET_NAME="<bucket>",DATABASE_URL="<connection-string>"
+   ```
+   Then trigger a fresh build (`aws amplify start-job --job-type RELEASE`) so
+   the running SSR compute actually picks up the new value.
+3. **Domain registrar nameserver cutover** — `DnsStack` only creates a
    CDK-managed Route 53 hosted zone for `UpSycleMarket.com`; it does not touch
    the actual domain registrar. Pointing the registrar's nameservers at this
    hosted zone's NS records (`HostedZoneId` / `NameServers` stack outputs) is
    tracked separately in **issue #22** and is a deliberate manual step — it
    affects a live domain and should happen at a chosen time to avoid
    propagation-window downtime.
-3. **SES production access** — new SES accounts start in the sandbox (can
+4. **SES production access** — new SES accounts start in the sandbox (can
    only send to verified addresses). Requesting production sending access is
    a manual step via the AWS Support Center, done once `EmailStack`'s domain
-   identity is verified (which itself requires #2 above, since verification
+   identity is verified (which itself requires #3 above, since verification
    is via DNS records in the now-authoritative Route 53 zone).
-4. **Wiring RDS/Cognito/S3 config into the running app** — `DataStack`'s
-   Secrets Manager secret ARN, `AuthStack`'s User Pool/Client IDs, and
-   `StorageStack`'s bucket names/CloudFront domain are exposed as CDK stack
-   outputs, but wiring them into the Next.js app's runtime environment
-   variables (Amplify Console → App settings → Environment variables, or a
-   follow-up CDK custom resource) is a manual/follow-up step, not done here.
 5. **Cognito Hosted UI domain prefix** (`upsycle-auth`) must be globally
    unique within the target AWS region — if deployment fails on that
    resource, change `domainPrefix` in `auth-stack.ts` and redeploy.
