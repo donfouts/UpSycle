@@ -10,15 +10,24 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+  const customEnvKeysPresent = [
+    "DATABASE_URL",
+    "COGNITO_REGION",
+    "COGNITO_USER_POOL_ID",
+    "COGNITO_USER_POOL_CLIENT_ID",
+    "PHOTOS_BUCKET_NAME",
+    "AMPLIFY_DIFF_DEPLOY",
+  ].filter((k) => Boolean(process.env[k]));
   try {
     const count = await prisma.category.count();
-    return NextResponse.json({ ok: true, categoryCount: count, hasDatabaseUrl });
+    return NextResponse.json({ ok: true, categoryCount: count, hasDatabaseUrl, customEnvKeysPresent });
   } catch (err) {
     const error = err as { name?: string; message?: string; code?: string };
     return NextResponse.json(
       {
         ok: false,
         hasDatabaseUrl,
+        customEnvKeysPresent,
         errorName: error?.name,
         errorMessage: error?.message,
         errorCode: error?.code,
