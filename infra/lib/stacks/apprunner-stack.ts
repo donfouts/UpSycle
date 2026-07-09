@@ -71,6 +71,11 @@ export class AppRunnerStack extends cdk.Stack {
     const instanceRole = new iam.Role(this, "AppRunnerInstanceRole", {
       assumedBy: new iam.ServicePrincipal("tasks.apprunner.amazonaws.com"),
     });
+    // App Runner resolves `runtimeEnvironmentSecrets` (below) using THIS
+    // role, not the access role — without this grant, deployment fails at
+    // initialization with "unable to pull secrets ... AccessDeniedException"
+    // before the container even starts (confirmed the hard way).
+    props.dbSecret.grantRead(instanceRole);
     props.productPhotosBucket.grantReadWrite(instanceRole);
     props.sellerVettingPhotosBucket.grantReadWrite(instanceRole);
     instanceRole.addToPolicy(
