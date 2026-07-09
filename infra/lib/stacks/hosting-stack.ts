@@ -57,22 +57,23 @@ export class HostingStack extends cdk.Stack {
       GITHUB_TOKEN_SECRET_NAME
     );
 
-    // Amplify Hosting's app/branch-level "environment variables" are
-    // confirmed present at build time (verified via build-log echo) but
-    // never reach the deployed SSR compute at request time — every
-    // DB-touching route 500'd with "Environment variable not found:
-    // DATABASE_URL" across every configuration tried: app-level vars,
-    // branch-level vars, an IAM service role for SSM access, and a
-    // console-based edit + explicit "Redeploy this version". A compute
-    // role (dbSecret.grantRead) didn't work either — the runtime doesn't
-    // expose IAM credentials via the standard AWS SDK chain at all
-    // (CredentialsProviderError). Root cause unconfirmed (possibly specific
-    // to CDK/CloudFormation-created Amplify apps vs console-created ones).
-    // Since build-time env vars DO work reliably, the actual fix bakes the
-    // resolved DATABASE_URL into a real source file during the build (see
-    // the buildSpec step below + instrumentation.ts) instead of depending on
-    // either runtime mechanism. Non-sensitive config (Cognito, S3) is baked
-    // in separately via next.config.ts's `env`.
+    // KNOWN UNRESOLVED ISSUE: Amplify Hosting's app/branch-level "environment
+    // variables" are confirmed present at build time (verified via a
+    // build-log echo) but never reach the deployed SSR compute at request
+    // time — every DB-touching route 500s with "Environment variable not
+    // found: DATABASE_URL" regardless of configuration: app-level vars,
+    // branch-level vars, an IAM service role for SSM access, a console-based
+    // edit + explicit "Redeploy this version", an IAM "compute role" granted
+    // Secrets Manager read access (fails with CredentialsProviderError — this
+    // runtime doesn't expose IAM credentials via the standard AWS SDK chain
+    // at all), and baking the resolved value into a bundled JSON file read by
+    // instrumentation.ts (caused a harder 502 crash, reverted). Root cause
+    // unconfirmed — possibly specific to CDK/CloudFormation-created Amplify
+    // apps vs console-created ones, worth an AWS Support case. Non-sensitive
+    // config (Cognito, S3) is still baked in via next.config.ts's `env`
+    // (untested whether that reaches runtime either, since the app never got
+    // past the DATABASE_URL failure) — DATABASE_URL itself has no working
+    // fix yet; the deployed app cannot reach the database.
     const amplifyServiceRole = new iam.Role(this, "AmplifyServiceRole", {
       assumedBy: new iam.ServicePrincipal("amplify.amazonaws.com"),
     });
@@ -92,7 +93,6 @@ export class HostingStack extends cdk.Stack {
         "      commands:",
         "        - npm ci",
         "        - npx prisma generate",
-        "        - node scripts/write-runtime-config.js",
         "    build:",
         "      commands:",
         "        - npm run build",
