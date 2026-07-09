@@ -114,6 +114,7 @@ export class HostingStack extends cdk.Stack {
         "  phases:",
         "    preBuild:",
         "      commands:",
+        "        - 'echo DEBUG_ENV_CHECK DATABASE_URL_SET=${DATABASE_URL:+yes} COGNITO_REGION_SET=${COGNITO_REGION:+yes}'",
         "        - npm ci",
         "        - npx prisma generate",
         "    build:",
