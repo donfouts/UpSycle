@@ -28,7 +28,14 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     const error = err as { name?: string; message?: string; code?: string };
     return NextResponse.json(
-      { ok: false, presentKeys, errorName: error?.name, errorMessage: error?.message, errorCode: error?.code },
+      {
+        ok: false,
+        presentKeys,
+        errorName: error?.name,
+        errorMessage: error?.message,
+        errorCode: error?.code,
+        secretFetchError: process.env.DEBUG_SECRET_FETCH_ERROR ?? null,
+      },
       { status: 500 },
     );
   }

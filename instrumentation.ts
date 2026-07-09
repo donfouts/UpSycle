@@ -44,5 +44,9 @@ export async function register() {
     process.env.DATABASE_URL = `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:5432/upsycle?schema=public&sslmode=require`;
   } catch (err) {
     console.error("instrumentation.ts: failed to fetch DATABASE_URL from Secrets Manager", err);
+    // TEMP diagnostic — safe to keep briefly: error name/message only, never
+    // a stack trace or credential. Reported by app/api/debug-db (also temp).
+    process.env.DEBUG_SECRET_FETCH_ERROR =
+      err instanceof Error ? `${err.name}: ${err.message}` : String(err);
   }
 }
