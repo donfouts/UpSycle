@@ -1,0 +1,39 @@
+name: Deploy to App Runner
+
+# Runs on every push to main: builds the Docker image, pushes it to ECR, and
+# updates the App Runner service — the same thing `cdk deploy
+# UpSycle-AppRunnerStack` does locally. Uses OIDC to assume an AWS IAM role
+# (see infra/lib/stacks/cicd-stack.ts) rather than storing AWS access keys
+# as GitHub secrets; that role's trust policy only allows assumption from
+# this exact repo's `main` branch.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::506145782106:role/UpSycle-GitHubActionsDeployRole
+          aws-region: us-west-2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install infra dependencies
+        working-directory: infra
+        run: npm ci
+
+      - name: cdk deploy
+        working-directory: infra
+        run: npx cdk deploy UpSycle-AppRunnerStack --require-approval never

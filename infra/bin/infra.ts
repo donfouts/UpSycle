@@ -8,6 +8,7 @@ import { StorageStack } from "../lib/stacks/storage-stack";
 import { EmailStack } from "../lib/stacks/email-stack";
 import { AppRunnerStack } from "../lib/stacks/apprunner-stack";
 import { DnsStack } from "../lib/stacks/dns-stack";
+import { CicdStack } from "../lib/stacks/cicd-stack";
 
 const app = new cdk.App();
 
@@ -23,6 +24,8 @@ const env: cdk.Environment = {
 };
 
 const domainName = app.node.tryGetContext("domainName") ?? "UpSycleMarket.com";
+const githubOwner = app.node.tryGetContext("githubOwner") ?? "donfouts";
+const githubRepo = app.node.tryGetContext("githubRepo") ?? "UpSycle";
 
 const networkStack = new NetworkStack(app, "UpSycle-NetworkStack", {
   env,
@@ -73,3 +76,10 @@ const dnsStack = new DnsStack(app, "UpSycle-DnsStack", {
   targetDomain: appRunnerStack.serviceUrl,
 });
 dnsStack.addDependency(appRunnerStack);
+
+const cicdStack = new CicdStack(app, "UpSycle-CicdStack", {
+  env,
+  description: "UpSycle: GitHub Actions OIDC deploy role (no long-lived AWS keys in GitHub secrets)",
+  githubOwner,
+  githubRepo,
+});

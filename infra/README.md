@@ -35,10 +35,11 @@ limitations, not gaps in this tagging setup; every taggable resource type is tag
 | `UpSycle-EmailStack` | SES domain identity for `UpSycleMarket.com` with Easy DKIM, for OTP account-recovery email and seller-referral invites. |
 | `UpSycle-AppRunnerStack` | AWS App Runner service running the Next.js app as a Docker container (built from `../Dockerfile` via `DockerImageAsset`, pushed to an auto-managed ECR repo during `cdk deploy`). Replaces the original Amplify Hosting design — see "Why App Runner, not Amplify" below. |
 | `UpSycle-DnsStack` | Route 53 hosted zone for `UpSycleMarket.com` plus a `www` CNAME to the App Runner service's default domain. **Not yet deployed** — no need until the domain cutover (issue #22) is actually happening. |
+| `UpSycle-CicdStack` | GitHub OIDC identity provider + an IAM role (`UpSycle-GitHubActionsDeployRole`) that `.github/workflows/deploy.yml` assumes to run `cdk deploy UpSycle-AppRunnerStack` on every push to `main` — no AWS access keys stored as GitHub secrets. |
 
 Dependency order (enforced via `addDependency` in `bin/infra.ts`):
 `NetworkStack → DataStack`, `DataStack/AuthStack/StorageStack → AppRunnerStack → DnsStack`.
-`EmailStack` is independent.
+`EmailStack` and `CicdStack` are independent.
 
 ## Why App Runner, not Amplify Hosting
 
@@ -82,12 +83,14 @@ Optional context overrides (defaults shown), e.g. `npx cdk synth -c domainName=e
 
 ## Manual prerequisites / follow-ups
 
-1. **CI/CD** — there's no GitHub-triggered auto-deploy yet (unlike Amplify's
-   native GitHub integration). `AppRunnerStack.autoDeploymentsEnabled` is
-   `false`; deploying a code change means running `cdk deploy
-   UpSycle-AppRunnerStack` again, which rebuilds the Docker image and updates
-   the service. A GitHub Actions workflow that runs `cdk deploy` on push to
-   `main` is the natural next step (tracked alongside issue #25's CI check).
+1. **CI/CD** — `.github/workflows/deploy.yml` runs `cdk deploy
+   UpSycle-AppRunnerStack` on every push to `main`, authenticated via
+   `UpSycle-CicdStack`'s GitHub OIDC deploy role (no AWS keys stored as
+   GitHub secrets). `AppRunnerStack.autoDeploymentsEnabled` is `false` since
+   this workflow is what triggers redeploys instead of App Runner's own
+   polling. `UpSycle-CicdStack` must be deployed at least once (manually,
+   the normal way) before the workflow's first run can succeed — it's what
+   creates the role the workflow assumes.
 2. **Domain registrar nameserver cutover** — `DnsStack` isn't deployed yet.
    When it is, it will only create a CDK-managed Route 53 hosted zone for
    `UpSycleMarket.com`; it does not touch the actual domain registrar.
@@ -131,5 +134,3 @@ traffic level; Route 53 (once `DnsStack` deploys) adds ~$1.50/mo.
   inside the VPC; none of the current stacks need this.
 - No custom domain association (`UpSycleMarket.com` → the App Runner
   service) — blocked on the manual registrar cutover (#22) described above.
-- No GitHub Actions CI/CD for App Runner deploys yet (see prerequisite #1
-  above).
