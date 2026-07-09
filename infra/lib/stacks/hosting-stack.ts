@@ -66,14 +66,16 @@ export class HostingStack extends cdk.Stack {
     // edit + explicit "Redeploy this version", an IAM "compute role" granted
     // Secrets Manager read access (fails with CredentialsProviderError — this
     // runtime doesn't expose IAM credentials via the standard AWS SDK chain
-    // at all), and baking the resolved value into a bundled JSON file read by
-    // instrumentation.ts (caused a harder 502 crash, reverted). Root cause
-    // unconfirmed — possibly specific to CDK/CloudFormation-created Amplify
-    // apps vs console-created ones, worth an AWS Support case. Non-sensitive
-    // config (Cognito, S3) is still baked in via next.config.ts's `env`
-    // (untested whether that reaches runtime either, since the app never got
-    // past the DATABASE_URL failure) — DATABASE_URL itself has no working
-    // fix yet; the deployed app cannot reach the database.
+    // at all), and even a full fresh recreation of the Amplify app. Root
+    // cause unconfirmed — possibly specific to CDK/CloudFormation-created
+    // Amplify apps vs console-created ones, worth an AWS Support case if this
+    // next attempt doesn't work either. Current approach: bake the resolved
+    // DATABASE_URL into `.next/generated-runtime-config.json` during the
+    // build (see the buildSpec below + instrumentation.ts) and read it via
+    // plain `fs` at server startup — a static import of a similar generated
+    // file previously caused a harder 502 crash, so this deliberately avoids
+    // that. Non-sensitive config (Cognito, S3) is baked in separately via
+    // next.config.ts's `env`.
     const amplifyServiceRole = new iam.Role(this, "AmplifyServiceRole", {
       assumedBy: new iam.ServicePrincipal("amplify.amazonaws.com"),
     });
@@ -96,6 +98,7 @@ export class HostingStack extends cdk.Stack {
         "    build:",
         "      commands:",
         "        - npm run build",
+        "        - node scripts/write-runtime-config.js",
         "  artifacts:",
         "    baseDirectory: .next",
         "    files:",
