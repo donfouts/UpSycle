@@ -18,7 +18,7 @@ export interface HostingStackProps extends cdk.StackProps {
 // different per-repo permission model that doesn't grant the webhook-creation
 // access Amplify's CloudFormation resource needs (`admin:repo_hook`), which
 // fails with "Resource not accessible by personal access token" otherwise.
-const GITHUB_TOKEN_SECRET_NAME = "upsycle/amplify/github-aws-classic";
+const GITHUB_TOKEN_SECRET_NAME = "upsycle/amplify/github-aws-classic2";
 
 /**
  * HostingStack

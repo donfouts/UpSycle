@@ -75,7 +75,7 @@ Optional context overrides (defaults shown), e.g. `npx cdk synth -c domainName=e
 
 1. **GitHub access token for Amplify** — `HostingStack` reads a GitHub
    **classic** personal access token (scopes: `repo`, `admin:repo_hook`) from a
-   Secrets Manager secret named `upsycle/amplify/github-aws-classic`,
+   Secrets Manager secret named `upsycle/amplify/github-aws-classic2`,
    referenced via a CloudFormation dynamic reference
    (`secretsmanager.Secret.fromSecretNameV2` + `.secretValue.unsafeUnwrap()`)
    so the token value never appears in code or in the synthesized template.
