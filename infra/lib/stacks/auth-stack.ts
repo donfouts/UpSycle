@@ -83,7 +83,13 @@ export class AuthStack extends cdk.Stack {
       generateSecret: false, // public client — Next.js app uses Authorization Code + PKCE
       authFlows: {
         userSrp: true,
-        userPassword: false,
+        // lib/cognito.ts's signIn() calls InitiateAuthCommand with
+        // AuthFlowType.USER_PASSWORD_AUTH directly (not the SRP challenge
+        // sequence) — this flow must be enabled on the client or every
+        // login fails with NotAuthorizedException ("USER_PASSWORD_AUTH
+        // flow not enabled for this client"), which the app's error mapping
+        // shows as a misleadingly generic "Incorrect email or password."
+        userPassword: true,
         custom: true,
       },
       oAuth: {
