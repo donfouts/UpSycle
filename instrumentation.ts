@@ -12,28 +12,37 @@
 // fetches the DB secret directly via the AWS SDK, using the "compute role"
 // IAM permissions granted in infra/lib/stacks/hosting-stack.ts. Local dev
 // is unaffected — DATABASE_URL from `.env` short-circuits this entirely.
+//
+// Static (not dynamic) import: instrumentation.ts gets special bundling
+// treatment by Next.js, and a dynamic `import()` here previously crashed the
+// ENTIRE deployed app (even static pages 500'd) — most likely the AWS SDK
+// package wasn't captured by Next.js's dependency tracing for the
+// serverless function bundle. A static top-level import is traced reliably.
+// This whole function is also wrapped in try/catch so that if the fetch
+// ever fails for any reason, only DB-touching routes fail (as before) —
+// this hook must never be able to take down the whole app again.
+import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
+
 export async function register() {
   if (process.env.DATABASE_URL) return;
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
-  const { SecretsManagerClient, GetSecretValueCommand } = await import(
-    "@aws-sdk/client-secrets-manager"
-  );
+  try {
+    const client = new SecretsManagerClient({ region: "us-west-2" });
+    const result = await client.send(
+      new GetSecretValueCommand({ SecretId: "upsycle/rds/postgres-admin" }),
+    );
+    if (!result.SecretString) {
+      throw new Error("DB secret has no SecretString");
+    }
 
-  const region = process.env.COGNITO_REGION ?? "us-west-2";
-  const client = new SecretsManagerClient({ region });
-
-  const result = await client.send(
-    new GetSecretValueCommand({ SecretId: "upsycle/rds/postgres-admin" }),
-  );
-  if (!result.SecretString) {
-    throw new Error("DB secret has no SecretString");
+    const { username, password } = JSON.parse(result.SecretString) as {
+      username: string;
+      password: string;
+    };
+    const host = "upsycle-db.c52sq6oeazzl.us-west-2.rds.amazonaws.com";
+    process.env.DATABASE_URL = `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:5432/upsycle?schema=public&sslmode=require`;
+  } catch (err) {
+    console.error("instrumentation.ts: failed to fetch DATABASE_URL from Secrets Manager", err);
   }
-
-  const { username, password } = JSON.parse(result.SecretString) as {
-    username: string;
-    password: string;
-  };
-  const host = "upsycle-db.c52sq6oeazzl.us-west-2.rds.amazonaws.com";
-  process.env.DATABASE_URL = `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:5432/upsycle?schema=public&sslmode=require`;
 }
