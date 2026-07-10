@@ -38,7 +38,18 @@ export class StorageStack extends cdk.Stack {
       cors: [
         {
           allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.PUT, s3.HttpMethods.POST],
-          allowedOrigins: ["https://UpSycleMarket.com", "http://localhost:3000"],
+          // "https://UpSycleMarket.com" is the eventual custom domain, but no
+          // App Runner custom-domain association or apex DNS record exists
+          // yet (see dns-stack.ts) — today the app is only actually served
+          // from App Runner's own generated domain, so browser-side
+          // presigned S3 uploads need that origin whitelisted too, or every
+          // upload fails with a CORS-blocked NetworkError. Update/remove
+          // once the custom domain is fully wired up.
+          allowedOrigins: [
+            "https://UpSycleMarket.com",
+            "https://x6pim6byn3.us-west-2.awsapprunner.com",
+            "http://localhost:3000",
+          ],
           allowedHeaders: ["*"],
         },
       ],
