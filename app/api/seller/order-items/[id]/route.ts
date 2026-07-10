@@ -27,7 +27,12 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   // The only transition this endpoint performs is PENDING_SHIPMENT ->
   // SHIPPED. The body is optional/informational — if the caller does send a
   // target status, reject anything other than SHIPPED so the intent behind
-  // the request is explicit rather than assumed.
+  // the request is explicit rather than assumed. This same transition is
+  // reused for local-pickup line items ("Mark as Picked Up" in the seller
+  // UI) — display labels differ by fulfillmentMethod (see
+  // lib/format.ts's shippingStatusLabel), but the underlying status
+  // transition and this endpoint are intentionally shared rather than
+  // duplicated.
   let body: { shippingStatus?: string } = {};
   try {
     body = await request.json();

@@ -92,7 +92,7 @@ export default async function OrderHistoryPage() {
                           Qty {item.quantity} &middot; {formatPriceCents(item.unitPriceCents)} each
                         </div>
                       </div>
-                      <ShippingStatusBadge status={item.shippingStatus} />
+                      <ShippingStatusBadge status={item.shippingStatus} fulfillmentMethod={item.fulfillmentMethod} />
                     </div>
                   );
                 })}

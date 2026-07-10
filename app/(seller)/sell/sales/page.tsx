@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import type { ShippingStatus } from "@prisma/client";
+import type { FulfillmentMethod, ShippingStatus } from "@prisma/client";
 
 import SalesTabs, { type SaleItemView } from "@/components/seller/SalesTabs";
 import { formatPriceCents } from "@/lib/format";
@@ -21,6 +21,7 @@ interface OrderItemWithProduct {
   quantity: number;
   unitPriceCents: number;
   shippingStatus: ShippingStatus;
+  fulfillmentMethod: FulfillmentMethod;
   createdAt: Date;
   product: { title: string; photos: { url: string }[] };
 }
@@ -33,6 +34,7 @@ function toSaleItemView(item: OrderItemWithProduct): SaleItemView {
     quantity: item.quantity,
     unitPriceCents: item.unitPriceCents,
     shippingStatus: item.shippingStatus,
+    fulfillmentMethod: item.fulfillmentMethod,
     orderedAt: item.createdAt.toISOString(),
   };
 }

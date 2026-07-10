@@ -10,6 +10,7 @@ export interface ProductInput {
   description: string;
   priceCents: number;
   shippingCostCents: number;
+  offersLocalPickup?: boolean;
   dimensions?: string;
   weightGrams?: number;
   inventoryCount: number;
@@ -52,6 +53,10 @@ export function validateProductInput(input: Partial<ProductInput>): string[] {
 
   if (!isNonNegativeInt(input.shippingCostCents)) {
     errors.push("Shipping cost must be a non-negative amount.");
+  }
+
+  if (input.offersLocalPickup !== undefined && typeof input.offersLocalPickup !== "boolean") {
+    errors.push("Offers local pickup must be true or false.");
   }
 
   if (input.weightGrams !== undefined && input.weightGrams !== null && !isNonNegativeInt(input.weightGrams)) {

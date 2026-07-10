@@ -25,7 +25,12 @@ interface ResolvedLine {
   shippingCostCents?: number;
   inventoryCount?: number;
   available?: boolean;
+  offersLocalPickup?: boolean;
+  pickupCity?: string | null;
+  pickupState?: string | null;
 }
+
+type FulfillmentMethod = "SHIP" | "PICKUP";
 
 export default function CheckoutClient({ addresses }: { addresses: AddressOption[] }) {
   const { items, hydrated } = useCart();
@@ -34,6 +39,11 @@ export default function CheckoutClient({ addresses }: { addresses: AddressOption
   const [addressId, setAddressId] = useState<string | undefined>(addresses[0]?.id);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fulfillmentByProduct, setFulfillmentByProduct] = useState<Record<string, FulfillmentMethod>>({});
+
+  const fulfillmentFor = (productId: string): FulfillmentMethod => fulfillmentByProduct[productId] ?? "SHIP";
+  const effectiveShippingCents = (line: ResolvedLine): number =>
+    line.offersLocalPickup && fulfillmentFor(line.productId) === "PICKUP" ? 0 : (line.shippingCostCents ?? 0);
 
   useEffect(() => {
     // Nothing to resolve for an empty (or not-yet-hydrated) cart — the
@@ -62,21 +72,32 @@ export default function CheckoutClient({ addresses }: { addresses: AddressOption
 
   const validLines = lines.filter((l) => l.priceCents != null && l.available !== false);
   const subtotalCents = validLines.reduce((sum, l) => sum + (l.priceCents ?? 0) * l.quantity, 0);
-  const shippingCents = validLines.reduce((sum, l) => sum + (l.shippingCostCents ?? 0), 0);
+  const shippingCents = validLines.reduce((sum, l) => sum + effectiveShippingCents(l), 0);
   const totalCents = subtotalCents + shippingCents;
   const distinctSellers = new Set(validLines.map((l) => l.sellerName).filter(Boolean));
+  const hasShippingLine = validLines.some(
+    (l) => !(l.offersLocalPickup && fulfillmentFor(l.productId) === "PICKUP"),
+  );
 
-  const canSubmit = hydrated && !loading && validLines.length === lines.length && lines.length > 0 && !!addressId;
+  const canSubmit =
+    hydrated &&
+    !loading &&
+    validLines.length === lines.length &&
+    lines.length > 0 &&
+    (!hasShippingLine || !!addressId);
 
   async function handlePay() {
-    if (!addressId) return;
+    if (hasShippingLine && !addressId) return;
     setSubmitting(true);
     setError(null);
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, shippingAddressId: addressId }),
+        body: JSON.stringify({
+          items: items.map((i) => ({ ...i, fulfillmentMethod: fulfillmentFor(i.productId) })),
+          shippingAddressId: hasShippingLine ? addressId : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -115,45 +136,53 @@ export default function CheckoutClient({ addresses }: { addresses: AddressOption
   return (
     <div className="mt-10 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_360px]">
       <div>
-        <h2 className="mb-4 font-serif text-[1.2rem] text-[var(--cream)]">Shipping Address</h2>
-        {addresses.length === 0 ? (
-          <p className="form-error">
-            We couldn&rsquo;t find a saved shipping address on your account. Please contact support.
-          </p>
-        ) : (
-          <div className="mb-10 space-y-3">
-            {addresses.map((address) => (
-              <label
-                key={address.id}
-                className={`flex cursor-pointer items-start gap-3 border p-4 text-[0.85rem] ${
-                  addressId === address.id
-                    ? "border-[var(--rg-core)] bg-[var(--panel)]"
-                    : "border-[var(--border)]"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="address"
-                  className="mt-1"
-                  checked={addressId === address.id}
-                  onChange={() => setAddressId(address.id)}
-                />
-                <span className="text-[var(--muted2)]">
-                  {address.line1}
-                  {address.line2 ? `, ${address.line2}` : ""}
-                  <br />
-                  {address.city}, {address.state} {address.postalCode}
-                  <br />
-                  {address.country}
-                  {address.isDefault && (
-                    <span className="ml-2 text-[0.6rem] uppercase tracking-[0.12em] text-[var(--rg-core)]">
-                      Default
+        {hasShippingLine ? (
+          <>
+            <h2 className="mb-4 font-serif text-[1.2rem] text-[var(--cream)]">Shipping Address</h2>
+            {addresses.length === 0 ? (
+              <p className="form-error">
+                We couldn&rsquo;t find a saved shipping address on your account. Please contact support.
+              </p>
+            ) : (
+              <div className="mb-10 space-y-3">
+                {addresses.map((address) => (
+                  <label
+                    key={address.id}
+                    className={`flex cursor-pointer items-start gap-3 border p-4 text-[0.85rem] ${
+                      addressId === address.id
+                        ? "border-[var(--rg-core)] bg-[var(--panel)]"
+                        : "border-[var(--border)]"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="address"
+                      className="mt-1"
+                      checked={addressId === address.id}
+                      onChange={() => setAddressId(address.id)}
+                    />
+                    <span className="text-[var(--muted2)]">
+                      {address.line1}
+                      {address.line2 ? `, ${address.line2}` : ""}
+                      <br />
+                      {address.city}, {address.state} {address.postalCode}
+                      <br />
+                      {address.country}
+                      {address.isDefault && (
+                        <span className="ml-2 text-[0.6rem] uppercase tracking-[0.12em] text-[var(--rg-core)]">
+                          Default
+                        </span>
+                      )}
                     </span>
-                  )}
-                </span>
-              </label>
-            ))}
-          </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="form-hint mb-10">
+            All items in this order are set for local pickup — no shipping address needed.
+          </p>
         )}
 
         <h2 className="mb-4 font-serif text-[1.2rem] text-[var(--cream)]">Items</h2>
@@ -174,10 +203,36 @@ export default function CheckoutClient({ addresses }: { addresses: AddressOption
                     No longer available — go back to your cart to remove it.
                   </div>
                 )}
+                {line.offersLocalPickup && (
+                  <div className="mt-2 flex gap-4 text-[0.72rem]">
+                    <label className="flex items-center gap-1.5 text-[var(--muted2)]">
+                      <input
+                        type="radio"
+                        name={`fulfillment-${line.productId}`}
+                        checked={fulfillmentFor(line.productId) === "SHIP"}
+                        onChange={() =>
+                          setFulfillmentByProduct((prev) => ({ ...prev, [line.productId]: "SHIP" }))
+                        }
+                      />
+                      Ship to Me
+                    </label>
+                    <label className="flex items-center gap-1.5 text-[var(--muted2)]">
+                      <input
+                        type="radio"
+                        name={`fulfillment-${line.productId}`}
+                        checked={fulfillmentFor(line.productId) === "PICKUP"}
+                        onChange={() =>
+                          setFulfillmentByProduct((prev) => ({ ...prev, [line.productId]: "PICKUP" }))
+                        }
+                      />
+                      Local Pickup{line.pickupCity ? ` — ${line.pickupCity}, ${line.pickupState}` : ""}
+                    </label>
+                  </div>
+                )}
               </div>
               {line.priceCents != null && (
                 <div className="shrink-0 text-[var(--cream)]">
-                  {formatPriceCents(line.priceCents * line.quantity + (line.shippingCostCents ?? 0))}
+                  {formatPriceCents(line.priceCents * line.quantity + effectiveShippingCents(line))}
                 </div>
               )}
             </div>

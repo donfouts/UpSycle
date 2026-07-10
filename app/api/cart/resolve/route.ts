@@ -35,7 +35,17 @@ export async function POST(request: NextRequest) {
     include: {
       photos: { orderBy: { position: "asc" }, take: 1 },
       sellerProfile: {
-        include: { user: { select: { firstName: true, lastName: true, email: true } } },
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              // Only city/state — never line1/line2.
+              addresses: { where: { isDefault: true }, take: 1, select: { city: true, state: true } },
+            },
+          },
+        },
       },
     },
   });
@@ -50,6 +60,7 @@ export async function POST(request: NextRequest) {
     // the client compares it against `inventoryCount` to show "only N left"
     // warnings. It is NOT silently reduced here; app/api/checkout/route.ts
     // is the actual enforcement point.
+    const location = product.sellerProfile.user.addresses[0];
     return {
       productId: product.id,
       title: product.title,
@@ -60,6 +71,9 @@ export async function POST(request: NextRequest) {
       inventoryCount: product.inventoryCount,
       quantity: Math.min(item.quantity, MAX_QUANTITY_PER_LINE),
       available: product.inventoryCount > 0,
+      offersLocalPickup: product.offersLocalPickup,
+      pickupCity: location?.city ?? null,
+      pickupState: location?.state ?? null,
     };
   });
 

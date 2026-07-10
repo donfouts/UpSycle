@@ -13,7 +13,7 @@
 // This schema stores only a Cognito user id (`cognitoSub`) on User — no password field.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   // "native" is correct now that the app deploys as a Docker container
   // (see infra/lib/stacks/apprunner-stack.ts + Dockerfile): `prisma
   // generate` runs inside the same build stage/base image the app actually
@@ -197,6 +197,7 @@ model Product {
   description       String
   priceCents        Int // price of item, stored as integer cents
   shippingCostCents Int
+  offersLocalPickup Boolean @default(false) // seller opt-in; buyer's approximate location shown is the seller's default Address city/state, never a full street address
   dimensions        String? // free-form e.g. "10x8x4 in" — no fixed unit schema requested
   weightGrams       Int?
   inventoryCount    Int     @default(0)
@@ -238,10 +239,22 @@ enum ShippingStatus {
   CANCELLED
 }
 
+// Per-line-item fulfillment choice made by the buyer at checkout (only
+// offered when the Product has offersLocalPickup = true). Deliberately not
+// folded into ShippingStatus — that enum tracks shipment progress, this
+// tracks which fulfillment path was chosen at all; display layers relabel
+// ShippingStatus values (e.g. "Ready for Pickup" instead of "Pending
+// Shipment") based on this field rather than adding pickup-specific
+// ShippingStatus values.
+enum FulfillmentMethod {
+  SHIP
+  PICKUP
+}
+
 model Order {
-  id                String @id @default(uuid())
+  id                String  @id @default(uuid())
   buyerId           String
-  shippingAddressId String
+  shippingAddressId String? // nullable: an all-pickup order has no items to ship, so no address is collected
 
   // Whole-order convenience status (e.g. for a buyer's order-history list).
   // Authoritative shipment tracking is per-line-item (see OrderItem below),
@@ -256,7 +269,7 @@ model Order {
   updatedAt DateTime @updatedAt
 
   buyer           User        @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Restrict)
-  shippingAddress Address     @relation("ShippingAddress", fields: [shippingAddressId], references: [id], onDelete: Restrict)
+  shippingAddress Address?    @relation("ShippingAddress", fields: [shippingAddressId], references: [id], onDelete: Restrict)
   items           OrderItem[]
 
   @@map("orders")
@@ -273,7 +286,9 @@ model OrderItem {
 
   quantity          Int @default(1)
   unitPriceCents    Int // price at time of purchase (snapshot, independent of later Product edits)
-  shippingCostCents Int
+  shippingCostCents Int // 0 when fulfillmentMethod is PICKUP
+
+  fulfillmentMethod FulfillmentMethod @default(SHIP)
 
   // Per-line-item shipment tracking. A single Order can contain items from
   // multiple sellers, each of whom ships independently — so "mark as

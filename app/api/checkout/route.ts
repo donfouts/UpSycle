@@ -27,10 +27,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/current-user";
 import { getStripeClient } from "@/lib/stripe";
-import { encodeCartMetadataItems, MAX_QUANTITY_PER_LINE, type CartItem, type ValidatedCartLine } from "@/lib/cart";
+import {
+  encodeCartMetadataItems,
+  MAX_QUANTITY_PER_LINE,
+  type CheckoutCartItem,
+  type ValidatedCartLine,
+} from "@/lib/cart";
 
 interface CheckoutBody {
-  items?: CartItem[];
+  items?: CheckoutCartItem[];
   shippingAddressId?: string;
 }
 
@@ -52,18 +57,6 @@ export async function POST(request: NextRequest) {
 
   if (items.length === 0) {
     return NextResponse.json({ error: "Your cart is empty." }, { status: 400 });
-  }
-  if (!shippingAddressId) {
-    return NextResponse.json({ error: "Please select a shipping address." }, { status: 400 });
-  }
-
-  // The address must belong to this buyer — never trust a client-supplied
-  // address id blindly.
-  const address = await prisma.address.findFirst({
-    where: { id: shippingAddressId, userId: user.id },
-  });
-  if (!address) {
-    return NextResponse.json({ error: "That shipping address could not be found." }, { status: 400 });
   }
 
   // Never trust client-submitted prices/quantities: re-fetch every Product
@@ -98,14 +91,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const requestedFulfillment = item.fulfillmentMethod === "PICKUP" ? "PICKUP" : "SHIP";
+    if (requestedFulfillment === "PICKUP" && !product.offersLocalPickup) {
+      return NextResponse.json(
+        { error: `Local pickup is not available for "${product.title}".` },
+        { status: 400 },
+      );
+    }
+
     validatedLines.push({
       productId: product.id,
       quantity,
       unitPriceCents: product.priceCents,
-      shippingCostCents: product.shippingCostCents,
+      shippingCostCents: requestedFulfillment === "PICKUP" ? 0 : product.shippingCostCents,
       sellerProfileId: product.sellerProfileId,
       title: product.title,
+      fulfillmentMethod: requestedFulfillment,
     });
+  }
+
+  // An address is only required if at least one line actually ships — an
+  // all-pickup cart never needs one.
+  const needsAddress = validatedLines.some((l) => l.fulfillmentMethod === "SHIP");
+  let address: { id: string } | null = null;
+  if (needsAddress) {
+    if (!shippingAddressId) {
+      return NextResponse.json({ error: "Please select a shipping address." }, { status: 400 });
+    }
+    // The address must belong to this buyer — never trust a client-supplied
+    // address id blindly.
+    address = await prisma.address.findFirst({
+      where: { id: shippingAddressId, userId: user.id },
+    });
+    if (!address) {
+      return NextResponse.json({ error: "That shipping address could not be found." }, { status: 400 });
+    }
   }
 
   const stripe = getStripeClient();
@@ -130,7 +150,10 @@ export async function POST(request: NextRequest) {
     });
     // Flat shipping cost per listing (not multiplied by quantity) — a
     // per-order shipping-consolidation model is out of scope for this MVP
-    // pass; each listing's shippingCostCents is charged once per line.
+    // pass; each listing's shippingCostCents is charged once per line. This
+    // guard also doubles as the pickup/ship branch: a PICKUP line always has
+    // shippingCostCents === 0 (set above), so it naturally gets no shipping
+    // line item.
     if (line.shippingCostCents > 0) {
       lineItems.push({
         price_data: {
@@ -145,7 +168,7 @@ export async function POST(request: NextRequest) {
 
   const metadata = {
     buyerId: user.id,
-    shippingAddressId: address.id,
+    ...(address ? { shippingAddressId: address.id } : {}),
     items: encodeCartMetadataItems(validatedLines),
   };
 

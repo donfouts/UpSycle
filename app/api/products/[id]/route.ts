@@ -62,6 +62,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   ) {
     errors.push("Shipping cost must be a non-negative amount.");
   }
+  if (body.offersLocalPickup !== undefined && typeof body.offersLocalPickup !== "boolean") {
+    errors.push("Offers local pickup must be true or false.");
+  }
   if (
     body.weightGrams !== undefined &&
     body.weightGrams !== null &&
@@ -114,6 +117,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           ...(body.description !== undefined && { description: body.description.trim() }),
           ...(body.priceCents !== undefined && { priceCents: body.priceCents }),
           ...(body.shippingCostCents !== undefined && { shippingCostCents: body.shippingCostCents }),
+          ...(body.offersLocalPickup !== undefined && { offersLocalPickup: body.offersLocalPickup }),
           ...(body.dimensions !== undefined && { dimensions: body.dimensions.trim() || null }),
           ...(body.weightGrams !== undefined && { weightGrams: body.weightGrams }),
           ...(body.categoryId !== undefined && { categoryId: body.categoryId }),

@@ -62,9 +62,31 @@ export function sellerDisplayName(seller: {
   return name.length > 0 ? name : seller.user.email.split("@")[0];
 }
 
-// Human-readable label for OrderItem.shippingStatus, used by the seller
-// sales dashboard (issue #13).
-export function shippingStatusLabel(status: "PENDING_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED"): string {
+type ShippingStatusValue = "PENDING_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+type FulfillmentMethodValue = "SHIP" | "PICKUP";
+
+// A pickup line reuses the same ShippingStatus transitions as a shipped line
+// (see app/api/seller/order-items/[id]/route.ts) — only the label differs,
+// so relabeling here (not adding pickup-specific enum values) keeps a single
+// workflow with no schema/transition-logic duplication. Shared by
+// ShippingStatusBadge and the seller sales dashboard so the two never drift.
+const PICKUP_LABEL_OVERRIDE: Partial<Record<ShippingStatusValue, string>> = {
+  PENDING_SHIPMENT: "Ready for Pickup",
+  SHIPPED: "Picked Up",
+  DELIVERED: "Picked Up",
+};
+
+/** Human-readable label for OrderItem.shippingStatus, used by the seller
+ * sales dashboard (issue #13) and ShippingStatusBadge. Pass the line's
+ * fulfillmentMethod to relabel pickup lines (e.g. "Ready for Pickup" instead
+ * of "Pending Shipment"); omit it for the default shipping labels. */
+export function shippingStatusLabel(
+  status: ShippingStatusValue,
+  fulfillmentMethod?: FulfillmentMethodValue,
+): string {
+  if (fulfillmentMethod === "PICKUP" && PICKUP_LABEL_OVERRIDE[status]) {
+    return PICKUP_LABEL_OVERRIDE[status]!;
+  }
   switch (status) {
     case "PENDING_SHIPMENT":
       return "Pending Shipment";

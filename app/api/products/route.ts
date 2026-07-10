@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
           description: input.description.trim(),
           priceCents: input.priceCents,
           shippingCostCents: input.shippingCostCents,
+          offersLocalPickup: input.offersLocalPickup ?? false,
           dimensions: input.dimensions?.trim() || null,
           weightGrams: input.weightGrams ?? null,
           inventoryCount: input.inventoryCount,

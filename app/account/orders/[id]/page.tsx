@@ -60,14 +60,20 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           <div className="mb-2 text-[0.62rem] uppercase tracking-[0.12em] text-[var(--rg-core)]">
             Shipping Address
           </div>
-          <div className="text-[0.85rem] font-light leading-relaxed text-[var(--muted2)]">
-            {order.shippingAddress.line1}
-            {order.shippingAddress.line2 ? <>, {order.shippingAddress.line2}</> : null}
-            <br />
-            {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}
-            <br />
-            {order.shippingAddress.country}
-          </div>
+          {order.shippingAddress ? (
+            <div className="text-[0.85rem] font-light leading-relaxed text-[var(--muted2)]">
+              {order.shippingAddress.line1}
+              {order.shippingAddress.line2 ? <>, {order.shippingAddress.line2}</> : null}
+              <br />
+              {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}
+              <br />
+              {order.shippingAddress.country}
+            </div>
+          ) : (
+            <p className="text-[0.85rem] font-light leading-relaxed text-[var(--muted2)]">
+              This order is for local pickup — no shipping address needed.
+            </p>
+          )}
         </div>
         <div>
           <div className="mb-2 text-[0.62rem] uppercase tracking-[0.12em] text-[var(--rg-core)]">Order Total</div>
@@ -118,7 +124,9 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 )}
                 <div className="mt-1 text-[0.78rem] font-light text-[var(--muted2)]">
                   Qty {item.quantity} &middot; {formatPriceCents(item.unitPriceCents)} each &middot;{" "}
-                  {formatPriceCents(item.shippingCostCents)} shipping
+                  {item.fulfillmentMethod === "PICKUP"
+                    ? "Local pickup — no shipping cost"
+                    : `${formatPriceCents(item.shippingCostCents)} shipping`}
                 </div>
               </div>
 
@@ -126,7 +134,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 <div className="mb-2 font-serif text-[1rem] text-[var(--cream)]">
                   {formatPriceCents(lineTotalCents)}
                 </div>
-                <ShippingStatusBadge status={item.shippingStatus} />
+                <ShippingStatusBadge status={item.shippingStatus} fulfillmentMethod={item.fulfillmentMethod} />
               </div>
             </div>
           );

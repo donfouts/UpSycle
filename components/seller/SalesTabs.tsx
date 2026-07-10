@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { ShippingStatus } from "@prisma/client";
+import type { FulfillmentMethod, ShippingStatus } from "@prisma/client";
 
 import { formatPriceCents, shippingStatusLabel } from "@/lib/format";
 
@@ -13,6 +13,7 @@ export interface SaleItemView {
   quantity: number;
   unitPriceCents: number;
   shippingStatus: ShippingStatus;
+  fulfillmentMethod: FulfillmentMethod;
   orderedAt: string; // ISO string — Dates aren't passed across the server/client boundary
 }
 
@@ -147,13 +148,17 @@ export default function SalesTabs({
                       disabled={inFlightIds.has(item.id)}
                       className="btn-secondary px-4 py-2 text-[0.62rem] disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {inFlightIds.has(item.id) ? "Marking…" : "Mark as Shipped"}
+                      {inFlightIds.has(item.id)
+                        ? "Marking…"
+                        : item.fulfillmentMethod === "PICKUP"
+                          ? "Mark as Picked Up"
+                          : "Mark as Shipped"}
                     </button>
                   ) : (
                     <span
                       className={`text-[0.65rem] font-semibold uppercase tracking-[0.1em] ${STATUS_TONE[item.shippingStatus]}`}
                     >
-                      {shippingStatusLabel(item.shippingStatus)}
+                      {shippingStatusLabel(item.shippingStatus, item.fulfillmentMethod)}
                     </span>
                   )}
                 </div>

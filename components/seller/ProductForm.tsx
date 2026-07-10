@@ -23,6 +23,7 @@ export interface ExistingProduct {
   description: string;
   priceCents: number;
   shippingCostCents: number;
+  offersLocalPickup: boolean;
   dimensions: string | null;
   weightGrams: number | null;
   inventoryCount: number;
@@ -108,6 +109,7 @@ export default function ProductForm({ categories, product }: ProductFormProps) {
   const [shippingDollars, setShippingDollars] = useState(
     product ? centsToDollarsInput(product.shippingCostCents) : "",
   );
+  const [offersLocalPickup, setOffersLocalPickup] = useState(product?.offersLocalPickup ?? false);
   const [dimensions, setDimensions] = useState(product?.dimensions ?? "");
   const [weightGrams, setWeightGrams] = useState(
     product?.weightGrams != null ? String(product.weightGrams) : "",
@@ -214,6 +216,7 @@ export default function ProductForm({ categories, product }: ProductFormProps) {
       description: description.trim(),
       priceCents: dollarsToCents(priceDollars || "0"),
       shippingCostCents: dollarsToCents(shippingDollars || "0"),
+      offersLocalPickup,
       dimensions: dimensions.trim() || undefined,
       weightGrams: weightGrams.trim() ? Number.parseInt(weightGrams, 10) : undefined,
       inventoryCount: Number.parseInt(inventoryCount || "0", 10),
@@ -364,6 +367,21 @@ export default function ProductForm({ categories, product }: ProductFormProps) {
               placeholder="8.00"
             />
           </div>
+        </div>
+        <div className="mt-4">
+          <label className="flex items-center gap-3 text-[0.85rem] text-[var(--cream)]">
+            <input
+              type="checkbox"
+              checked={offersLocalPickup}
+              onChange={(e) => setOffersLocalPickup(e.target.checked)}
+            />
+            Offer local pickup for this item
+          </label>
+          <p className="mt-2 text-[0.72rem] font-light text-[var(--muted2)]">
+            Buyers will be able to choose pickup instead of shipping at checkout. Your approximate
+            city/state (from your seller account) will be shown on the listing — never your full
+            address.
+          </p>
         </div>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>

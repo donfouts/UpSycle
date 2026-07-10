@@ -49,7 +49,12 @@ export async function POST(request: NextRequest) {
   const stripePaymentId =
     typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? session.id;
 
-  if (!buyerId || !shippingAddressId || lines.length === 0) {
+  // An address is only required if at least one line actually ships — an
+  // all-pickup order legitimately has no shippingAddressId. Re-derived from
+  // the decoded lines rather than trusting a separate metadata flag.
+  const needsAddress = lines.some((l) => l.fulfillmentMethod === "SHIP");
+
+  if (!buyerId || lines.length === 0 || (needsAddress && !shippingAddressId)) {
     console.error("Stripe webhook: checkout.session.completed missing expected metadata", {
       sessionId: session.id,
     });
@@ -73,7 +78,7 @@ export async function POST(request: NextRequest) {
       const created = await tx.order.create({
         data: {
           buyerId,
-          shippingAddressId,
+          shippingAddressId: shippingAddressId ?? null,
           totalAmountCents,
           stripePaymentId,
           items: {
@@ -83,6 +88,7 @@ export async function POST(request: NextRequest) {
               quantity: l.quantity,
               unitPriceCents: l.unitPriceCents,
               shippingCostCents: l.shippingCostCents,
+              fulfillmentMethod: l.fulfillmentMethod,
             })),
           },
         },

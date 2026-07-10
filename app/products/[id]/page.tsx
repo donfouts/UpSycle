@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import AddToCartButton from "@/components/AddToCartButton";
+import ProductGallery from "@/components/ProductGallery";
 import {
   formatPriceCents,
   formatWeightGrams,
@@ -25,7 +26,18 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
       category: true,
       photos: { orderBy: { position: "asc" } },
       sellerProfile: {
-        include: { user: { select: { firstName: true, lastName: true, email: true } } },
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              // Only city/state — never line1/line2 — this is the buyer-facing
+              // "approximate location," not the seller's full address.
+              addresses: { where: { isDefault: true }, take: 1, select: { city: true, state: true } },
+            },
+          },
+        },
       },
     },
   });
@@ -35,7 +47,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
   }
 
   const stock = stockLabel(product.inventoryCount);
-  const [mainPhoto, ...restPhotos] = product.photos;
+  const location = product.sellerProfile.user.addresses[0];
 
   return (
     <section className="px-6 py-28 md:px-14">
@@ -55,38 +67,16 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
 
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
           {/* ═══ PHOTOS ═══ */}
-          <div>
-            <div className="mb-2 aspect-square w-full overflow-hidden bg-[var(--deep)]">
-              {mainPhoto ? (
-                // eslint-disable-next-line @next/next/no-img-element -- external/S3 photo URLs, no fixed domain configured yet
-                <img
-                  src={mainPhoto.url}
-                  alt={product.title}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-[0.6rem] uppercase tracking-[0.12em] text-[var(--muted)]">
-                  Photo Coming Soon
-                </div>
-              )}
-            </div>
-            {restPhotos.length > 0 && (
-              <div className="grid grid-cols-4 gap-2">
-                {restPhotos.map((photo) => (
-                  <div key={photo.id} className="aspect-square overflow-hidden bg-[var(--deep)]">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- external/S3 photo URLs, no fixed domain configured yet */}
-                    <img src={photo.url} alt={product.title} className="h-full w-full object-cover" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <ProductGallery photos={product.photos} title={product.title} />
 
           {/* ═══ DETAILS ═══ */}
           <div>
-            <div className="mb-2 text-[0.68rem] font-medium uppercase tracking-[0.12em] text-[var(--rg-core)]">
+            <Link
+              href={`/sellers/${product.sellerProfile.id}`}
+              className="mb-2 inline-block text-[0.68rem] font-medium uppercase tracking-[0.12em] text-[var(--rg-core)] no-underline transition-colors hover:text-[var(--rg-light)] hover:underline"
+            >
               {sellerDisplayName(product.sellerProfile)}
-            </div>
+            </Link>
             <h1 className="mb-4 font-serif text-[clamp(1.8rem,3vw,2.6rem)] font-normal leading-tight text-[var(--cream)]">
               {product.title}
             </h1>
@@ -113,6 +103,20 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
             <dl className="mb-8 grid grid-cols-2 gap-y-3 border-t border-[var(--border)] pt-6 text-[0.85rem]">
               <dt className="text-[var(--muted)]">Shipping</dt>
               <dd className="text-[var(--cream)]">{formatPriceCents(product.shippingCostCents)}</dd>
+              {location && (
+                <>
+                  <dt className="text-[var(--muted)]">Location</dt>
+                  <dd className="text-[var(--cream)]">
+                    {location.city}, {location.state}
+                  </dd>
+                </>
+              )}
+              {product.offersLocalPickup && (
+                <>
+                  <dt className="text-[var(--muted)]">Local Pickup</dt>
+                  <dd className="text-[var(--success)]">Available</dd>
+                </>
+              )}
               {product.dimensions && (
                 <>
                   <dt className="text-[var(--muted)]">Dimensions</dt>
