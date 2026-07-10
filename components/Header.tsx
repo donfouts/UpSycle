@@ -10,7 +10,7 @@ const navLinks = [
 
 export default function Header() {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-[200] flex items-center justify-between px-6 py-4 md:px-14 bg-[rgba(8,8,8,0.94)] backdrop-blur-[14px] border-b border-[var(--border)]">
+    <nav className="fixed top-0 left-0 right-0 z-[200] flex items-center justify-between px-6 py-4 md:px-14 lg:px-20 xl:px-28 bg-[rgba(8,8,8,0.94)] backdrop-blur-[14px] border-b border-[var(--border)]">
       <Link href="/" className="flex items-center gap-3 no-underline">
         <span className="relative block w-[38px] h-8 shrink-0" aria-hidden="true">
           <span className="grad-text absolute top-0 left-0 z-[2] font-serif text-[1.65rem] font-light leading-[0.85]">
