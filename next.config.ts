@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
   // Next.js SSR process despite extensive troubleshooting (see git history
   // on hosting-stack.ts, now removed, for the full account).
   output: "standalone",
+
+  async redirects() {
+    return [
+      // "Start Selling" (Header) / "Open a Shop" (Footer) both point here —
+      // the actual signup form lives at /sell/signup.
+      { source: "/sell", destination: "/sell/signup", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;
