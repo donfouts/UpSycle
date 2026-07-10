@@ -20,7 +20,13 @@ cdk.Tags.of(app).add("project", "UpSycle");
 
 const env: cdk.Environment = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
-  region: process.env.CDK_DEFAULT_REGION ?? "us-east-1",
+  // us-west-2 is where every stack actually lives (see infra/README.md) —
+  // this fallback only kicks in for a local `cdk deploy`/`cdk synth` run
+  // without CDK_DEFAULT_REGION set (CI always sets it explicitly via
+  // .github/workflows/deploy.yml's aws-region input). Keep this matched to
+  // the real deployed region so a bare local run can't silently stand up a
+  // second, disconnected copy of the stack set in the wrong region.
+  region: process.env.CDK_DEFAULT_REGION ?? "us-west-2",
 };
 
 const domainName = app.node.tryGetContext("domainName") ?? "UpSycleMarket.com";
