@@ -1,6 +1,8 @@
 import Link from "next/link";
 import CategoryNav from "@/components/CategoryNav";
 import CartBadge from "@/components/cart/CartBadge";
+import LogoutButton from "@/components/LogoutButton";
+import { getCurrentUser } from "@/lib/current-user";
 import { CATEGORY_TREE } from "@/lib/categories";
 
 const navLinks = [
@@ -8,7 +10,12 @@ const navLinks = [
   { href: "/#story", label: "Our Story" },
 ];
 
-export default function Header() {
+const authNavLinkClass =
+  "text-[0.68rem] font-medium tracking-[0.13em] uppercase text-[rgba(245,237,224,0.4)] no-underline transition-colors hover:text-[var(--rg-light)]";
+
+export default async function Header() {
+  const user = await getCurrentUser();
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-[200] flex items-center justify-between px-6 py-4 md:px-14 lg:px-20 xl:px-28 bg-[rgba(8,8,8,0.94)] backdrop-blur-[14px] border-b border-[var(--border)]">
       <Link href="/" className="flex items-center gap-3 no-underline">
@@ -51,14 +58,26 @@ export default function Header() {
             Start Selling
           </Link>
         </li>
-        <li className="hidden md:block">
-          <Link
-            href="/login"
-            className="text-[0.68rem] font-medium tracking-[0.13em] uppercase text-[rgba(245,237,224,0.4)] no-underline"
-          >
-            Sign In
-          </Link>
-        </li>
+        {user ? (
+          <>
+            <li className="hidden md:block">
+              <Link href="/account" className={authNavLinkClass}>
+                {user.firstName ?? "Account"}
+              </Link>
+            </li>
+            <li className="hidden md:block">
+              <LogoutButton
+                className={`${authNavLinkClass} cursor-pointer border-none bg-transparent p-0`}
+              />
+            </li>
+          </>
+        ) : (
+          <li className="hidden md:block">
+            <Link href="/login" className={authNavLinkClass}>
+              Sign In
+            </Link>
+          </li>
+        )}
         <li>
           <CartBadge />
         </li>
