@@ -14,8 +14,10 @@ export interface AddressInput {
 }
 
 export interface SellerSignupInput {
-  email: string;
-  password: string;
+  // Omitted when applying from an existing logged-in account — see
+  // requireCredentials below.
+  email?: string;
+  password?: string;
   address: AddressInput;
   websiteUrl?: string;
   socialMediaUrls: string[];
@@ -41,16 +43,25 @@ export function isValidUrl(value: string): boolean {
 /**
  * Validates a (possibly partial/untrusted) seller signup payload.
  * Returns a list of human-readable error messages; empty means valid.
+ *
+ * requireCredentials is false when the applicant is already logged in
+ * (attaching a seller profile to their existing account, no new Cognito
+ * identity needed) — see app/api/sellers/signup/route.ts.
  */
-export function validateSellerSignup(input: Partial<SellerSignupInput>): string[] {
+export function validateSellerSignup(
+  input: Partial<SellerSignupInput>,
+  { requireCredentials = true }: { requireCredentials?: boolean } = {},
+): string[] {
   const errors: string[] = [];
 
-  if (!input.email || !isValidEmail(input.email)) {
-    errors.push("A valid email address is required.");
-  }
+  if (requireCredentials) {
+    if (!input.email || !isValidEmail(input.email)) {
+      errors.push("A valid email address is required.");
+    }
 
-  if (!input.password || input.password.length < 8) {
-    errors.push("Password must be at least 8 characters.");
+    if (!input.password || input.password.length < 8) {
+      errors.push("Password must be at least 8 characters.");
+    }
   }
 
   const address = input.address;

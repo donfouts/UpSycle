@@ -1,19 +1,30 @@
-// Seller signup: creates the Cognito auth user, then the full set of
-// Postgres rows (User, UserRole, Address, SellerProfile, 5x
-// SellerSamplePhoto, optional SellerReferral) as a new PENDING-approval
-// seller account.
+// Seller signup: two paths into the same PENDING-approval SellerProfile.
 //
-// Cannot be statically rendered — it writes to Cognito/Postgres on every
-// request.
+// 1. Logged out (or logged in with no session detected): creates a brand
+//    new Cognito auth user, then the full set of Postgres rows (User,
+//    UserRole, Address, SellerProfile, 5x SellerSamplePhoto, optional
+//    SellerReferral).
+// 2. Logged in already (as a buyer, most likely): no new Cognito identity —
+//    User/UserRole/Address already exist, so this just adds the SELLER role
+//    and SellerProfile to the existing account. Multi-role accounts are an
+//    explicit part of the User/UserRole design (see prisma/schema.prisma);
+//    this endpoint previously always forced a brand-new identity even when
+//    the caller already had one.
+//
+// Cannot be statically rendered — it reads the session and writes to
+// Cognito/Postgres on every request.
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/current-user";
 import { deleteUnconfirmedUser, signUp } from "@/lib/cognito";
 import { type SellerSignupInput, validateSellerSignup } from "@/lib/validation/sellerSignup";
 
 export async function POST(request: NextRequest) {
+  const currentUser = await getCurrentUser();
+
   let body: Partial<SellerSignupInput>;
   try {
     body = (await request.json()) as Partial<SellerSignupInput>;
@@ -21,20 +32,108 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ errors: ["Request body must be valid JSON."] }, { status: 400 });
   }
 
-  const errors = validateSellerSignup(body);
+  const errors = validateSellerSignup(body, { requireCredentials: !currentUser });
   if (errors.length > 0) {
     return NextResponse.json({ errors }, { status: 400 });
   }
 
-  // validateSellerSignup has confirmed every required field is present.
+  // validateSellerSignup has confirmed every required field is present
+  // (credentials only when requireCredentials was true, i.e. !currentUser).
   const input = body as SellerSignupInput;
-  const email = input.email.trim();
+
+  if (currentUser) {
+    return attachSellerToExistingUser(currentUser.id, input);
+  }
+  return createNewSellerAccount(input);
+}
+
+async function attachSellerToExistingUser(userId: string, input: SellerSignupInput) {
+  const existingSellerProfile = await prisma.sellerProfile.findUnique({ where: { userId } });
+  if (existingSellerProfile) {
+    return NextResponse.json(
+      { errors: ["You already have a seller account or application."] },
+      { status: 409 },
+    );
+  }
+
+  try {
+    const created = await prisma.$transaction(async (tx) => {
+      const hasSellerRole = await tx.userRole.findUnique({
+        where: { userId_role: { userId, role: Role.SELLER } },
+      });
+      if (!hasSellerRole) {
+        await tx.userRole.create({ data: { userId, role: Role.SELLER } });
+      }
+
+      // Reuse/update the account's existing default address rather than
+      // creating a second isDefault row — the form pre-fills from it (see
+      // app/(seller)/sell/signup/page.tsx), so what's submitted here is
+      // what the applicant confirmed, not a surprise overwrite.
+      const existingDefaultAddress = await tx.address.findFirst({ where: { userId, isDefault: true } });
+      const addressData = {
+        line1: input.address.line1.trim(),
+        line2: input.address.line2?.trim() || null,
+        city: input.address.city.trim(),
+        state: input.address.state.trim(),
+        postalCode: input.address.postalCode.trim(),
+        country: input.address.country.trim() || "US",
+      };
+      if (existingDefaultAddress) {
+        await tx.address.update({ where: { id: existingDefaultAddress.id }, data: addressData });
+      } else {
+        await tx.address.create({ data: { userId, isDefault: true, ...addressData } });
+      }
+
+      const samplePhotoUrls = input.samplePhotoUrls.filter((u) => u.trim());
+
+      const sellerProfile = await tx.sellerProfile.create({
+        data: {
+          userId,
+          websiteUrl: input.websiteUrl?.trim() || null,
+          socialMediaUrls: input.socialMediaUrls.filter((u) => u.trim()),
+          expectedMonthlySales: input.expectedMonthlySales,
+          supplierList: input.supplierList.filter((s) => s.trim()),
+          approvalStatus: "PENDING",
+          samplePhotos: {
+            create: samplePhotoUrls.map((url) => ({ url })),
+          },
+        },
+      });
+
+      const referralEmail = input.referralEmail?.trim();
+      if (referralEmail) {
+        const referrer = await tx.user.findUnique({ where: { email: referralEmail } });
+        if (referrer) {
+          await tx.sellerReferral.create({
+            data: { referrerId: referrer.id, referralId: userId, referralEmail },
+          });
+        }
+      }
+
+      return { userId, sellerProfile };
+    });
+
+    return NextResponse.json(
+      { userId: created.userId, approvalStatus: created.sellerProfile.approvalStatus },
+      { status: 201 },
+    );
+  } catch (err) {
+    console.error("Failed to attach seller profile to existing user:", err);
+    return NextResponse.json(
+      { errors: ["Failed to submit your seller application. Please try again."] },
+      { status: 500 },
+    );
+  }
+}
+
+async function createNewSellerAccount(input: SellerSignupInput) {
+  const email = input.email!.trim();
 
   // Step 1: create the Cognito user (unconfirmed). This must succeed first —
   // Postgres's User.cognitoSub is required and needs a real sub to store.
   let cognitoSub: string;
   try {
-    const result = await signUp({ email, password: input.password });
+    const result = await signUp({ email, password: input.password! });
     cognitoSub = result.userSub;
   } catch (err) {
     console.error("Cognito signUp failed during seller signup:", err);

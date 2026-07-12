@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
+  type AddressInput,
   REQUIRED_SAMPLE_PHOTOS,
   type SellerSignupInput,
   validateSellerSignup,
@@ -34,19 +35,27 @@ const addLinkClass =
 const removeBtnClass =
   "shrink-0 border border-[var(--border)] px-3 py-3 text-[0.65rem] uppercase tracking-[0.1em] text-[var(--muted)] transition-colors hover:border-[#e05a5a] hover:text-[#e58a8a]";
 
-export default function SellerSignupForm() {
+interface SellerSignupFormProps {
+  // Present when applying from an existing logged-in account — skips the
+  // Account section (no new Cognito identity needed) and pre-fills the
+  // address from the account's existing default, if any. See
+  // app/(seller)/sell/signup/page.tsx.
+  existingAccount?: { email: string; defaultAddress?: AddressInput };
+}
+
+export default function SellerSignupForm({ existingAccount }: SellerSignupFormProps) {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [line1, setLine1] = useState("");
-  const [line2, setLine2] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [postalCode, setPostalCode] = useState("");
-  const [country, setCountry] = useState("US");
+  const [line1, setLine1] = useState(existingAccount?.defaultAddress?.line1 ?? "");
+  const [line2, setLine2] = useState(existingAccount?.defaultAddress?.line2 ?? "");
+  const [city, setCity] = useState(existingAccount?.defaultAddress?.city ?? "");
+  const [state, setState] = useState(existingAccount?.defaultAddress?.state ?? "");
+  const [postalCode, setPostalCode] = useState(existingAccount?.defaultAddress?.postalCode ?? "");
+  const [country, setCountry] = useState(existingAccount?.defaultAddress?.country ?? "US");
 
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [socialMediaUrls, setSocialMediaUrls] = useState<string[]>([""]);
@@ -154,7 +163,7 @@ export default function SellerSignupForm() {
     e.preventDefault();
     setFormErrors([]);
 
-    if (password !== confirmPassword) {
+    if (!existingAccount && password !== confirmPassword) {
       setFormErrors(["Password and confirmation password do not match."]);
       return;
     }
@@ -165,8 +174,7 @@ export default function SellerSignupForm() {
     }
 
     const payload: Partial<SellerSignupInput> = {
-      email: email.trim(),
-      password,
+      ...(existingAccount ? {} : { email: email.trim(), password }),
       address: {
         line1: line1.trim(),
         line2: line2.trim() || undefined,
@@ -183,7 +191,7 @@ export default function SellerSignupForm() {
       samplePhotoUrls: photos.map((p) => p.uploadedUrl ?? ""),
     };
 
-    const errors = validateSellerSignup(payload);
+    const errors = validateSellerSignup(payload, { requireCredentials: !existingAccount });
     if (errors.length > 0) {
       setFormErrors(errors);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -205,7 +213,8 @@ export default function SellerSignupForm() {
         return;
       }
 
-      router.push(`/sell/pending?email=${encodeURIComponent(payload.email as string)}`);
+      const email = existingAccount?.email ?? (payload.email as string);
+      router.push(`/sell/pending?email=${encodeURIComponent(email)}`);
     } catch {
       setFormErrors(["Network error — please check your connection and try again."]);
     } finally {
@@ -226,55 +235,65 @@ export default function SellerSignupForm() {
       )}
 
       {/* ACCOUNT */}
-      <div className={sectionClass}>
-        <h2 className={sectionHeadingClass}>Account</h2>
-        <div className="mb-4">
-          <label className={labelClass} htmlFor="email">
-            Email *
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            className={inputClass}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-          />
+      {existingAccount ? (
+        <div className={sectionClass}>
+          <h2 className={sectionHeadingClass}>Account</h2>
+          <p className="text-sm text-[var(--muted2)]">
+            Applying as <span className="text-[var(--rg-light)]">{existingAccount.email}</span>. Your
+            existing account will also become a seller account — no new login needed.
+          </p>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className={labelClass} htmlFor="password">
-              Password *
+      ) : (
+        <div className={sectionClass}>
+          <h2 className={sectionHeadingClass}>Account</h2>
+          <div className="mb-4">
+            <label className={labelClass} htmlFor="email">
+              Email *
             </label>
             <input
-              id="password"
-              type="password"
+              id="email"
+              type="email"
               required
-              minLength={8}
               className={inputClass}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
             />
           </div>
-          <div>
-            <label className={labelClass} htmlFor="confirmPassword">
-              Confirm Password *
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              required
-              minLength={8}
-              className={inputClass}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter password"
-            />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelClass} htmlFor="password">
+                Password *
+              </label>
+              <input
+                id="password"
+                type="password"
+                required
+                minLength={8}
+                className={inputClass}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 8 characters"
+              />
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="confirmPassword">
+                Confirm Password *
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                required
+                minLength={8}
+                className={inputClass}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter password"
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ADDRESS */}
       <div className={sectionClass}>
