@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import AddToCartButton from "@/components/AddToCartButton";
 import ProductGallery from "@/components/ProductGallery";
+import ProductQA from "@/components/ProductQA";
+import { getCurrentUser } from "@/lib/current-user";
 import {
   formatPriceCents,
   formatWeightGrams,
@@ -29,6 +31,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
         include: {
           user: {
             select: {
+              id: true,
               firstName: true,
               lastName: true,
               email: true,
@@ -37,6 +40,12 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               addresses: { where: { isDefault: true }, take: 1, select: { city: true, state: true } },
             },
           },
+        },
+      },
+      questions: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          askedBy: { select: { firstName: true } },
         },
       },
     },
@@ -48,6 +57,9 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
 
   const stock = stockLabel(product.inventoryCount);
   const location = product.sellerProfile.user.addresses[0];
+
+  const currentUser = await getCurrentUser();
+  const isOwningSeller = currentUser?.id === product.sellerProfile.user.id;
 
   return (
     <section className="px-6 py-28 md:px-14">
@@ -134,6 +146,19 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
             <AddToCartButton productId={product.id} inventoryCount={product.inventoryCount} />
           </div>
         </div>
+
+        <ProductQA
+          productId={product.id}
+          questions={product.questions.map((q) => ({
+            id: q.id,
+            questionText: q.questionText,
+            askerFirstName: q.askedBy.firstName,
+            answerText: q.answerText,
+            answeredAt: q.answeredAt ? q.answeredAt.toISOString() : null,
+          }))}
+          canAsk={currentUser != null && !isOwningSeller}
+          canAnswer={isOwningSeller}
+        />
       </div>
     </section>
   );
