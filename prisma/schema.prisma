@@ -4,7 +4,8 @@
 // Scope: Phase 0 (issue #4) + Phase 1 field-level detail from mvp-build-plan.md.
 // Deliberately NOT modeled (Phase 2 backlog, do not block adding later):
 //   - subscription tiers (seller featured-placement ranking)
-//   - buyer<->seller product Q&A / messaging
+//   - private buyer<->seller messaging (public product Q&A is modeled below —
+//     ProductQuestion — but a private DM channel is a separate, deferred scope)
 //   - buyer reviews on purchased items
 //   - "recommended items" personalization state
 //   - admin analytics dashboard aggregates (derivable from Order/Product/User via queries)
@@ -59,6 +60,9 @@ model User {
 
   referralsSent     SellerReferral[] @relation("ReferrerUser")
   referralsReceived SellerReferral[] @relation("ReferralUser")
+
+  questionsAsked    ProductQuestion[] @relation("QuestionAsker")
+  questionsAnswered ProductQuestion[] @relation("QuestionAnswerer")
 
   @@map("users")
 }
@@ -207,10 +211,11 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sellerProfile SellerProfile  @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
-  category      Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  sellerProfile SellerProfile     @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  category      Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   photos        ProductPhoto[]
   orderItems    OrderItem[]
+  questions     ProductQuestion[]
 
   @@map("products")
 }
@@ -226,6 +231,34 @@ model ProductPhoto {
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("product_photos")
+}
+
+// ---------------------------------------------------------------------------
+// Product Q&A (public)
+// ---------------------------------------------------------------------------
+
+// Public buyer<->seller Q&A on a product page (Amazon/Etsy-style): a buyer
+// asks, the product's seller answers, and both are visible to every visitor.
+// Deliberately smaller in scope than private messaging (see header comment) —
+// answer fields live inline on the question row rather than a separate
+// Answer table, since a question has at most one seller-authored answer for
+// this pass. Append-only from the buyer's side (no edit/delete) like
+// ProductPhoto/OrderItem; a seller may re-answer (overwrite) to fix a typo.
+model ProductQuestion {
+  id           String    @id @default(uuid())
+  productId    String
+  askedById    String
+  questionText String
+  answerText   String?
+  answeredById String?
+  answeredAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  askedBy    User    @relation("QuestionAsker", fields: [askedById], references: [id], onDelete: Cascade)
+  answeredBy User?   @relation("QuestionAnswerer", fields: [answeredById], references: [id], onDelete: SetNull)
+
+  @@map("product_questions")
 }
 
 // ---------------------------------------------------------------------------
