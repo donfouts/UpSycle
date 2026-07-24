@@ -40,6 +40,16 @@ export default async function Header() {
         <li className="hidden md:block">
           <CategoryNav categories={CATEGORY_TREE} />
         </li>
+        <li className="hidden lg:block">
+          <form action="/browse" method="GET" className="flex items-center">
+            <input
+              type="search"
+              name="q"
+              placeholder="Search handcrafted pieces..."
+              className="w-48 border border-[var(--border)] bg-[var(--panel2)] px-3 py-2 text-[0.8rem] text-[var(--cream)] outline-none placeholder:text-[rgba(245,237,224,0.3)] focus:border-[var(--rg-core)]"
+            />
+          </form>
+        </li>
         {navLinks.map((link) => (
           <li key={link.href} className="hidden md:block">
             <Link

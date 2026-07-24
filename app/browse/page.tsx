@@ -1,8 +1,10 @@
 import Link from "next/link";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { CATEGORY_TREE } from "@/lib/categories";
-import CategoryNav from "@/components/CategoryNav";
+import FilterPanel from "@/components/FilterPanel";
 import ProductCard from "@/components/ProductCard";
+import { dollarsToCents } from "@/lib/format";
 
 // This page always queries the live DB for products/pagination, so it can't
 // be statically generated at build time (no DATABASE_URL available then).
@@ -11,11 +13,17 @@ export const dynamic = "force-dynamic";
 const PAGE_SIZE = 24;
 
 interface BrowsePageProps {
-  searchParams: Promise<{ cat?: string; page?: string }>;
+  searchParams: Promise<{
+    cat?: string;
+    page?: string;
+    q?: string;
+    minPrice?: string;
+    maxPrice?: string;
+  }>;
 }
 
 export default async function BrowsePage({ searchParams }: BrowsePageProps) {
-  const { cat, page: pageParam } = await searchParams;
+  const { cat, page: pageParam, q, minPrice, maxPrice } = await searchParams;
   const page = Math.max(1, Number.parseInt(pageParam ?? "1", 10) || 1);
 
   let categoryIds: string[] | undefined;
@@ -40,7 +48,27 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     }
   }
 
-  const where = categoryIds ? { categoryId: { in: categoryIds } } : {};
+  const where: Prisma.ProductWhereInput = {};
+
+  if (categoryIds) {
+    where.categoryId = { in: categoryIds };
+  }
+
+  if (q) {
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  const minCents = minPrice ? dollarsToCents(minPrice) : undefined;
+  const maxCents = maxPrice ? dollarsToCents(maxPrice) : undefined;
+  if (Number.isFinite(minCents) || Number.isFinite(maxCents)) {
+    where.priceCents = {
+      ...(Number.isFinite(minCents) ? { gte: minCents } : {}),
+      ...(Number.isFinite(maxCents) ? { lte: maxCents } : {}),
+    };
+  }
 
   const [products, totalCount] = await Promise.all([
     prisma.product.findMany({
@@ -63,6 +91,9 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
   const pageHref = (targetPage: number) => {
     const params = new URLSearchParams();
     if (cat) params.set("cat", cat);
+    if (q) params.set("q", q);
+    if (minPrice) params.set("minPrice", minPrice);
+    if (maxPrice) params.set("maxPrice", maxPrice);
     params.set("page", String(targetPage));
     return `/browse?${params.toString()}`;
   };
@@ -70,9 +101,16 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
   return (
     <section className="px-6 py-28 md:px-14">
       <div className="sec-max">
-        <div className="eyebrow">{activeCategory ? activeCategory.name : "Full Marketplace"}</div>
+        <div className="eyebrow">
+          {q ? "Search Results" : activeCategory ? activeCategory.name : "Full Marketplace"}
+        </div>
         <h2 className="sec-title">
-          {activeCategory ? (
+          {q ? (
+            <>
+              Results for <em>&ldquo;{q}&rdquo;</em>
+              {activeCategory && <> in {activeCategory.name}</>}
+            </>
+          ) : activeCategory ? (
             <>
               Browsing <em>{activeCategory.name}</em>
             </>
@@ -112,7 +150,13 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
 
         <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-[220px_1fr]">
           <aside className="hidden lg:block">
-            <CategoryNav categories={CATEGORY_TREE} activeSlug={cat} variant="sidebar" />
+            <FilterPanel
+              categories={CATEGORY_TREE}
+              activeSlug={cat}
+              q={q}
+              minPrice={minPrice}
+              maxPrice={maxPrice}
+            />
           </aside>
 
           <div>
