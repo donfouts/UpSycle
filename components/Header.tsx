@@ -17,24 +17,12 @@ export default async function Header() {
   const user = await getCurrentUser();
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-[200] flex items-center justify-between px-6 py-4 md:px-14 lg:px-20 xl:px-28 bg-[rgba(8,8,8,0.94)] backdrop-blur-[14px] border-b border-[var(--border)]">
+    <nav className="fixed top-0 left-0 right-0 z-[200] flex items-center justify-between px-6 py-4 md:px-14 lg:px-20 xl:px-28 bg-[rgba(3,3,3,0.94)] backdrop-blur-[14px] border-b border-[var(--border)]">
       <Link href="/" className="flex items-center gap-3 no-underline">
-        <span className="relative block w-[38px] h-8 shrink-0" aria-hidden="true">
-          <span className="grad-text absolute top-0 left-0 z-[2] font-serif text-[1.65rem] font-light leading-[0.85]">
-            U
-          </span>
-          <span className="grad-text absolute bottom-0 right-0 z-[1] font-serif text-[1.65rem] font-light leading-[0.85] opacity-95">
-            S
-          </span>
-        </span>
-        <span className="flex flex-col leading-[1.1]">
-          <span className="font-serif text-[1.05rem] font-semibold text-[var(--cream)] tracking-[0.04em]">
-            <span className="grad-text">Up</span>Sycle
-          </span>
-          <span className="font-sans text-[0.5rem] font-medium tracking-[0.32em] uppercase text-[var(--rg-light)] opacity-75">
-            — Market —
-          </span>
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset in /public, no next/image config yet */}
+        <img src="/iconmark.png" alt="" aria-hidden="true" className="h-8 w-auto shrink-0" />
+        {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset in /public, no next/image config yet */}
+        <img src="/wordmark.png" alt="UpSycle Market" className="h-7 w-auto" />
       </Link>
       <ul className="flex items-center gap-7 list-none">
         <li className="hidden md:block">

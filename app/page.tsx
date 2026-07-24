@@ -71,41 +71,12 @@ export default async function Home() {
         />
 
         <div className="relative z-[2] flex flex-col items-center">
-          {/* Offset US monogram — exact logo replica: U top-left, S bottom-right, overlapping */}
-          <div
-            className="relative mx-auto mb-3.5 w-[clamp(150px,24vw,240px)] h-[clamp(130px,19vw,200px)]"
-            aria-label="US"
-          >
-            <span
-              className="grad-text absolute top-0 left-0 z-[2] font-serif font-light leading-[0.88]"
-              style={{
-                fontSize: "clamp(105px, 18vw, 168px)",
-                filter: "drop-shadow(0 3px 20px rgba(181,98,42,0.4))",
-              }}
-            >
-              U
-            </span>
-            <span
-              className="grad-text absolute bottom-0 right-0 z-[1] font-serif font-light leading-[0.88] opacity-[0.97]"
-              style={{
-                fontSize: "clamp(105px, 18vw, 168px)",
-                filter: "drop-shadow(0 3px 20px rgba(181,98,42,0.3))",
-              }}
-            >
-              S
-            </span>
-          </div>
-
-          <h1 className="mb-1 font-serif text-[clamp(2rem,4.5vw,3.8rem)] font-normal leading-none tracking-[0.02em] text-[var(--cream)]">
-            <span className="grad-text">Up</span>Sycle
-          </h1>
-          <div className="mb-6 flex items-center justify-center gap-2.5 font-sans text-[0.7rem] font-medium tracking-[0.4em] uppercase text-[var(--rg-light)] before:content-['—'] before:opacity-45 after:content-['—'] after:opacity-45">
-            Market
-          </div>
-          <p className="mb-3 font-serif text-[clamp(1rem,1.8vw,1.4rem)] italic font-light tracking-[0.03em] text-[var(--muted2)]">
-            Created By <span className="grad-text not-italic font-semibold">US</span>, Treasured
-            by You
-          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset in /public, no next/image config yet */}
+          <img
+            src="/landing.png"
+            alt="UpSycle Market — Created By US, Treasured by You"
+            className="mb-3 w-[clamp(240px,40vw,420px)] h-auto"
+          />
           <p className="mb-12 text-[0.65rem] font-medium tracking-[0.22em] uppercase text-[var(--rg-core)] opacity-85">
             Handmade &nbsp;·&nbsp; Upcycled &nbsp;·&nbsp; Sustainable
           </p>
