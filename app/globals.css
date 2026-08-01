@@ -585,3 +585,193 @@ a {
 .admin-search-form .form-input {
   flex: 1;
 }
+
+/* ══════════════════════════════════════
+   LEGAL PAGES (/privacy, /terms)
+   Ported from Sample/Privacy-Policy.html and Sample/terms.html —
+   those files reference a `styles.css` that doesn't exist in this repo,
+   so the layout is rebuilt here on the app's own token system.
+══════════════════════════════════════ */
+.legal-header {
+  margin-bottom: 40px;
+}
+
+.legal-meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.legal-disclaimer {
+  background: var(--charcoal);
+  border-left: 2px solid var(--rg-core);
+  padding: 16px 20px;
+  font-size: 0.82rem;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--muted2);
+}
+
+.legal-disclaimer strong {
+  color: var(--rg-light);
+  font-weight: 600;
+}
+
+.legal-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 48px;
+}
+
+@media (min-width: 1024px) {
+  .legal-layout {
+    grid-template-columns: 220px 1fr;
+    align-items: start;
+  }
+}
+
+.legal-toc {
+  position: sticky;
+  top: 96px;
+}
+
+.legal-toc-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--rg-core);
+  margin-bottom: 14px;
+}
+
+.legal-toc ol {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.legal-toc a {
+  font-size: 0.78rem;
+  color: var(--muted2);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.legal-toc a:hover {
+  color: var(--rg-light);
+}
+
+.legal-section {
+  padding-top: 8px;
+  margin-bottom: 48px;
+  scroll-margin-top: 96px;
+}
+
+.legal-section:last-child {
+  margin-bottom: 0;
+}
+
+.legal-num {
+  font-family: var(--font-serif);
+  font-size: 0.85rem;
+  color: var(--rg-core);
+  opacity: 0.7;
+  margin-bottom: 6px;
+}
+
+.legal-section h2 {
+  font-family: var(--font-serif);
+  font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+  font-weight: 400;
+  color: var(--cream);
+  margin-bottom: 14px;
+}
+
+.legal-section h3 {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--cream);
+  margin: 20px 0 10px;
+}
+
+.legal-section p {
+  font-size: 0.9rem;
+  font-weight: 300;
+  line-height: 1.75;
+  color: var(--muted2);
+  margin-bottom: 14px;
+}
+
+.legal-section ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.legal-section ul li {
+  font-size: 0.9rem;
+  font-weight: 300;
+  line-height: 1.65;
+  color: var(--muted2);
+  padding-left: 18px;
+  position: relative;
+}
+
+.legal-section ul li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 5px;
+  height: 5px;
+  background: var(--rg-core);
+  opacity: 0.6;
+}
+
+.legal-section a {
+  color: var(--rg-light);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-placeholder {
+  color: var(--danger);
+  background: rgba(224, 137, 125, 0.08);
+  padding: 1px 5px;
+  font-style: italic;
+}
+
+.legal-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  font-size: 0.85rem;
+}
+
+.legal-table th {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rg-core);
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.legal-table td {
+  color: var(--muted2);
+  font-weight: 300;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border2);
+  vertical-align: top;
+}
+
+.legal-table tr:last-child td {
+  border-bottom: none;
+}
