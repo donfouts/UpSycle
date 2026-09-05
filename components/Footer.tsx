@@ -21,10 +21,17 @@ const footerCols = [
   },
   {
     title: "Company",
+    links: [{ href: "/#story", label: "Our Story" }],
+  },
+  {
+    title: "Legal",
     links: [
-      { href: "/#story", label: "Our Story" },
       { href: "/terms", label: "Terms of Service" },
       { href: "/privacy", label: "Privacy Policy" },
+      { href: "/shipping", label: "Shipping & Delivery" },
+      { href: "/returns", label: "Return Policy" },
+      { href: "/acceptable-use", label: "Acceptable Use" },
+      { href: "/disclaimer", label: "Disclaimer" },
     ],
   },
 ];
