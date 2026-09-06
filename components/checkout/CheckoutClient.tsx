@@ -275,7 +275,7 @@ export default function CheckoutClient({ addresses }: { addresses: AddressOption
         >
           {submitting ? "Redirecting to Payment…" : "Pay with Stripe"}
         </button>
-        <p className="form-hint mt-4">
+        <p className="form-hint" style={{ marginTop: "10px" }}>
           You&rsquo;ll be redirected to Stripe&rsquo;s secure checkout to complete payment.
         </p>
       </aside>

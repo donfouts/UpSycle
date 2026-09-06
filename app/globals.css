@@ -319,7 +319,7 @@ a {
 .admin-sidebar {
   background: var(--charcoal);
   border-right: 1px solid var(--border);
-  padding: 28px 0;
+  padding: 44px 0 28px;
 }
 
 .admin-sidebar-header {
