@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireSellerPageAuth, sellerAuthFailureMessage } from "@/lib/seller-auth";
 import ShopStoryEditor from "@/components/seller/ShopStoryEditor";
+import TierSelector from "@/components/seller/TierSelector";
 
 export const metadata: Metadata = {
   title: "Shop Settings — UpSycle Market",
@@ -41,7 +42,7 @@ export default async function SellerProfilePage() {
 
   const sellerProfile = await prisma.sellerProfile.findUniqueOrThrow({
     where: { id: auth.seller.sellerProfileId },
-    select: { slug: true, story: true },
+    select: { slug: true, story: true, tier: true },
   });
 
   return (
@@ -61,6 +62,10 @@ export default async function SellerProfilePage() {
 
       <div className="border border-[var(--border)] bg-[var(--charcoal)] p-6 md:p-8">
         <ShopStoryEditor initialStory={sellerProfile.story ?? ""} />
+      </div>
+
+      <div className="mt-8 border border-[var(--border)] bg-[var(--charcoal)] p-6 md:p-8">
+        <TierSelector initialTier={sellerProfile.tier} />
       </div>
     </div>
   );

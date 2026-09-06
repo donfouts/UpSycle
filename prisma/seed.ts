@@ -6,7 +6,7 @@
 // — instead this script clears existing demo products/photos before
 // re-inserting, so it's safe to run repeatedly against a scratch dev DB
 // without accumulating duplicates. Do not point this at a shared/prod DB.
-import { PrismaClient, Role, SellerApprovalStatus, ShippingStatus } from "@prisma/client";
+import { PrismaClient, Role, SellerApprovalStatus, SellerTier, ShippingStatus } from "@prisma/client";
 import { CATEGORY_TREE } from "../lib/categories";
 
 const prisma = new PrismaClient();
@@ -37,6 +37,7 @@ interface SeedSeller {
   lastName: string;
   slug: string;
   story: string;
+  tier: SellerTier;
 }
 
 const SELLERS: SeedSeller[] = [
@@ -48,6 +49,7 @@ const SELLERS: SeedSeller[] = [
     slug: "desert-silver-co",
     story:
       "Desert Silver Co. reclaims sterling scrap and estate-sale findings from across the Southwest, reworking each piece into one-of-a-kind jewelry by hand in a small Tucson studio.",
+    tier: SellerTier.TIER_1,
   },
   {
     cognitoSub: "seed-cognito-seattle-glass",
@@ -57,6 +59,7 @@ const SELLERS: SeedSeller[] = [
     slug: "seattle-glass-works",
     story:
       "Seattle Glass Works melts down bottle and window glass destined for the landfill into blown-glass vessels and home decor, all shaped in a converted garage studio in Ballard.",
+    tier: SellerTier.TIER_2,
   },
   {
     cognitoSub: "seed-cognito-high-desert-wood",
@@ -66,6 +69,7 @@ const SELLERS: SeedSeller[] = [
     slug: "high-desert-wood",
     story:
       "High Desert Wood builds furniture and small goods from salvaged barnwood and storm-fallen timber sourced within a hundred miles of the Reno workshop.",
+    tier: SellerTier.TIER_3,
   },
 ];
 
@@ -92,6 +96,7 @@ async function seedSellers() {
         userId: user.id,
         slug: s.slug,
         story: s.story,
+        tier: s.tier,
         approvalStatus: SellerApprovalStatus.APPROVED,
         socialMediaUrls: [],
         supplierList: [],

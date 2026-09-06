@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { SellerTier } from "@prisma/client";
 import {
   type AddressInput,
   MAX_STORY_LENGTH,
@@ -9,6 +10,15 @@ import {
   type SellerSignupInput,
   validateSellerSignup,
 } from "@/lib/validation/sellerSignup";
+
+const SELLER_TIER_PLACEHOLDER =
+  "Benefits and pricing for this tier are still being finalized — you'll be notified before anything changes.";
+
+const SELLER_TIERS: { value: SellerTier; label: string }[] = [
+  { value: "TIER_1", label: "Tier 1" },
+  { value: "TIER_2", label: "Tier 2" },
+  { value: "TIER_3", label: "Tier 3" },
+];
 
 interface PhotoSlot {
   file: File | null;
@@ -63,6 +73,7 @@ export default function SellerSignupForm({ existingAccount }: SellerSignupFormPr
   const [socialMediaUrls, setSocialMediaUrls] = useState<string[]>([""]);
   const [expectedMonthlySales, setExpectedMonthlySales] = useState("");
   const [supplierList, setSupplierList] = useState<string[]>([""]);
+  const [tier, setTier] = useState<SellerTier>("TIER_1");
   const [referralEmail, setReferralEmail] = useState("");
 
   const [photos, setPhotos] = useState<PhotoSlot[]>(
@@ -190,6 +201,7 @@ export default function SellerSignupForm({ existingAccount }: SellerSignupFormPr
       socialMediaUrls: socialMediaUrls.map((s) => s.trim()).filter(Boolean),
       expectedMonthlySales: Number.parseInt(expectedMonthlySales, 10),
       supplierList: supplierList.map((s) => s.trim()).filter(Boolean),
+      tier,
       referralEmail: referralEmail.trim() || undefined,
       samplePhotoUrls: photos.map((p) => p.uploadedUrl ?? ""),
     };
@@ -506,6 +518,42 @@ export default function SellerSignupForm({ existingAccount }: SellerSignupFormPr
           >
             + Add another supplier
           </button>
+        </div>
+      </div>
+
+      {/* SELLER TIER */}
+      <div className={sectionClass}>
+        <h2 className={sectionHeadingClass}>Seller Tier</h2>
+        <p className="mb-4 text-[0.78rem] font-light text-[var(--muted2)]">
+          Choose the tier you&apos;d like to apply under. Pricing and benefits for each tier are
+          still being finalized.
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {SELLER_TIERS.map((option) => (
+            <label
+              key={option.value}
+              className={`flex cursor-pointer flex-col gap-2 border p-4 transition-colors ${
+                tier === option.value
+                  ? "border-[var(--rg-core)] bg-[var(--panel2)]"
+                  : "border-[var(--border)] bg-[var(--panel2)] hover:border-[var(--rg-core)]"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="tier"
+                  value={option.value}
+                  checked={tier === option.value}
+                  onChange={() => setTier(option.value)}
+                  className="accent-[var(--rg-core)]"
+                />
+                <span className="text-sm font-medium text-[var(--cream)]">{option.label}</span>
+              </div>
+              <p className="text-[0.78rem] font-light text-[var(--muted2)]">
+                {SELLER_TIER_PLACEHOLDER}
+              </p>
+            </label>
+          ))}
         </div>
       </div>
 

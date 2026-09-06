@@ -95,6 +95,17 @@ enum SellerApprovalStatus {
   SUSPENDED
 }
 
+// Paid subscription tier a seller applies under / can change from their
+// dashboard. Benefits per tier and the billing that would enforce them are
+// still being defined (Phase 2) — this enum exists now so the tier a seller
+// picks is captured and visible to admins ahead of that work, not because
+// pricing/benefits are settled.
+enum SellerTier {
+  TIER_1
+  TIER_2
+  TIER_3
+}
+
 model SellerProfile {
   id     String @id @default(uuid())
   userId String @unique
@@ -118,6 +129,7 @@ model SellerProfile {
   expectedMonthlySales Int? // expected volume of sales per month
   supplierList         String[] // e.g. "Home Depot", "Hobby Lobby"
   approvalStatus       SellerApprovalStatus @default(PENDING)
+  tier                 SellerTier           @default(TIER_1) // chosen at application, changeable from /sell/profile
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

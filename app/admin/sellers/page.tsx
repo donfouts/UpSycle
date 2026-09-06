@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import StatusBadge from "@/components/admin/StatusBadge";
 import SellerActionButtons from "@/components/admin/SellerActionButtons";
+import { sellerTierLabel } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,10 @@ export default async function AdminSellersPage() {
                   <dd>{seller.expectedMonthlySales ?? "—"}</dd>
                 </div>
                 <div className="admin-review-field">
+                  <dt>Seller Tier</dt>
+                  <dd>{sellerTierLabel(seller.tier)}</dd>
+                </div>
+                <div className="admin-review-field">
                   <dt>Social Media</dt>
                   <dd>
                     {seller.socialMediaUrls.length > 0 ? (
@@ -137,6 +142,7 @@ export default async function AdminSellersPage() {
               <th>Seller</th>
               <th>Email</th>
               <th>Listings</th>
+              <th>Tier</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -144,7 +150,7 @@ export default async function AdminSellersPage() {
           <tbody>
             {others.length === 0 ? (
               <tr>
-                <td colSpan={5}>No approved or suspended sellers yet.</td>
+                <td colSpan={6}>No approved or suspended sellers yet.</td>
               </tr>
             ) : (
               others.map((seller) => (
@@ -152,6 +158,7 @@ export default async function AdminSellersPage() {
                   <td>{sellerName(seller.user)}</td>
                   <td>{seller.user.email}</td>
                   <td>{seller._count.products}</td>
+                  <td>{sellerTierLabel(seller.tier)}</td>
                   <td>
                     <StatusBadge status={seller.approvalStatus} />
                   </td>

@@ -2,6 +2,8 @@
 // form (for immediate feedback) and the API route (as the authoritative
 // check). Keeping one copy means the two can't drift out of sync.
 
+import type { SellerTier } from "@prisma/client";
+
 export const REQUIRED_SAMPLE_PHOTOS = 5;
 
 export interface AddressInput {
@@ -31,6 +33,10 @@ export interface SellerSignupInput {
   // approved. Also editable later from the seller dashboard (see
   // app/api/sellers/profile/route.ts) — not required at application time.
   story?: string;
+  // Seller-selected pricing tier. Pricing/benefits per tier and payment
+  // processing are still undecided — this only captures the applicant's
+  // choice for later use.
+  tier?: SellerTier;
 }
 
 export function isValidEmail(value: string): boolean {
@@ -122,6 +128,12 @@ export function validateSellerSignup(
 
   if (input.story && input.story.length > MAX_STORY_LENGTH) {
     errors.push(`Your story must be ${MAX_STORY_LENGTH} characters or fewer.`);
+  }
+
+  if (!input.tier) {
+    errors.push("Please select a seller tier.");
+  } else if (!["TIER_1", "TIER_2", "TIER_3"].includes(input.tier)) {
+    errors.push("Selected tier is not valid.");
   }
 
   return errors;
