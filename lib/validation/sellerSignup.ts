@@ -13,6 +13,8 @@ export interface AddressInput {
   country: string;
 }
 
+export const MAX_STORY_LENGTH = 2000;
+
 export interface SellerSignupInput {
   // Omitted when applying from an existing logged-in account — see
   // requireCredentials below.
@@ -25,6 +27,10 @@ export interface SellerSignupInput {
   supplierList: string[];
   referralEmail?: string;
   samplePhotoUrls: string[];
+  // Optional paragraph shown on the seller's public storefront page once
+  // approved. Also editable later from the seller dashboard (see
+  // app/api/sellers/profile/route.ts) — not required at application time.
+  story?: string;
 }
 
 export function isValidEmail(value: string): boolean {
@@ -112,6 +118,10 @@ export function validateSellerSignup(
     errors.push(`Exactly ${REQUIRED_SAMPLE_PHOTOS} sample product photos are required.`);
   } else if (samplePhotoUrls.some((u) => !isValidUrl(u))) {
     errors.push("One or more sample photo uploads failed. Please re-upload.");
+  }
+
+  if (input.story && input.story.length > MAX_STORY_LENGTH) {
+    errors.push(`Your story must be ${MAX_STORY_LENGTH} characters or fewer.`);
   }
 
   return errors;

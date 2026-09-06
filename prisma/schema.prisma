@@ -99,6 +99,20 @@ model SellerProfile {
   id     String @id @default(uuid())
   userId String @unique
 
+  // Readable storefront URL segment (/sellers/[slug]) — generated once at
+  // application time from the applicant's name/email (see lib/slug.ts) since
+  // a raw SellerProfile.id guid isn't something a seller can share with
+  // customers. Immutable after creation to avoid breaking links a seller has
+  // already shared.
+  slug String @unique
+
+  // Paragraph the seller writes about themselves/their shop. Collected at
+  // application time but editable afterward from the seller dashboard
+  // (app/(seller)/sell/profile) — unlike the rest of SellerProfile's
+  // application-vetting fields, this is customer-facing copy shown on the
+  // seller's storefront page, so it's expected to be kept up to date.
+  story String?
+
   websiteUrl           String?
   socialMediaUrls      String[] // multiple social accounts allowed
   expectedMonthlySales Int? // expected volume of sales per month

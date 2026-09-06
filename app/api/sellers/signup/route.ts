@@ -20,7 +20,14 @@ import { Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/current-user";
 import { deleteUnconfirmedUser, signUp } from "@/lib/cognito";
+import { generateUniqueSellerSlug } from "@/lib/slug";
 import { type SellerSignupInput, validateSellerSignup } from "@/lib/validation/sellerSignup";
+
+/** Same "name, else email local-part" fallback as lib/format.ts's sellerDisplayName. */
+function nameOrEmailPrefix(person: { firstName: string | null; lastName: string | null; email: string }): string {
+  const name = [person.firstName, person.lastName].filter(Boolean).join(" ").trim();
+  return name.length > 0 ? name : person.email.split("@")[0];
+}
 
 export async function POST(request: NextRequest) {
   const currentUser = await getCurrentUser();
@@ -56,6 +63,12 @@ async function attachSellerToExistingUser(userId: string, input: SellerSignupInp
     );
   }
 
+  const existingUser = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { firstName: true, lastName: true, email: true },
+  });
+  const slug = await generateUniqueSellerSlug(nameOrEmailPrefix(existingUser));
+
   try {
     const created = await prisma.$transaction(async (tx) => {
       const hasSellerRole = await tx.userRole.findUnique({
@@ -89,6 +102,8 @@ async function attachSellerToExistingUser(userId: string, input: SellerSignupInp
       const sellerProfile = await tx.sellerProfile.create({
         data: {
           userId,
+          slug,
+          story: input.story?.trim() || null,
           websiteUrl: input.websiteUrl?.trim() || null,
           socialMediaUrls: input.socialMediaUrls.filter((u) => u.trim()),
           expectedMonthlySales: input.expectedMonthlySales,
@@ -128,6 +143,9 @@ async function attachSellerToExistingUser(userId: string, input: SellerSignupInp
 
 async function createNewSellerAccount(input: SellerSignupInput) {
   const email = input.email!.trim();
+  // No firstName/lastName collected on this path yet (see User.create below),
+  // so the slug is derived from the email's local part.
+  const slug = await generateUniqueSellerSlug(email.split("@")[0]);
 
   // Step 1: create the Cognito user (unconfirmed). This must succeed first —
   // Postgres's User.cognitoSub is required and needs a real sub to store.
@@ -175,6 +193,8 @@ async function createNewSellerAccount(input: SellerSignupInput) {
       const sellerProfile = await tx.sellerProfile.create({
         data: {
           userId: user.id,
+          slug,
+          story: input.story?.trim() || null,
           websiteUrl: input.websiteUrl?.trim() || null,
           socialMediaUrls: input.socialMediaUrls.filter((u) => u.trim()),
           expectedMonthlySales: input.expectedMonthlySales,

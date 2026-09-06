@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   type AddressInput,
+  MAX_STORY_LENGTH,
   REQUIRED_SAMPLE_PHOTOS,
   type SellerSignupInput,
   validateSellerSignup,
@@ -57,6 +58,7 @@ export default function SellerSignupForm({ existingAccount }: SellerSignupFormPr
   const [postalCode, setPostalCode] = useState(existingAccount?.defaultAddress?.postalCode ?? "");
   const [country, setCountry] = useState(existingAccount?.defaultAddress?.country ?? "US");
 
+  const [story, setStory] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [socialMediaUrls, setSocialMediaUrls] = useState<string[]>([""]);
   const [expectedMonthlySales, setExpectedMonthlySales] = useState("");
@@ -183,6 +185,7 @@ export default function SellerSignupForm({ existingAccount }: SellerSignupFormPr
         postalCode: postalCode.trim(),
         country: country.trim() || "US",
       },
+      story: story.trim() || undefined,
       websiteUrl: websiteUrl.trim() || undefined,
       socialMediaUrls: socialMediaUrls.map((s) => s.trim()).filter(Boolean),
       expectedMonthlySales: Number.parseInt(expectedMonthlySales, 10),
@@ -386,6 +389,25 @@ export default function SellerSignupForm({ existingAccount }: SellerSignupFormPr
       {/* BUSINESS DETAILS */}
       <div className={sectionClass}>
         <h2 className={sectionHeadingClass}>Your Shop</h2>
+
+        <div className="mb-5">
+          <label className={labelClass} htmlFor="story">
+            Your Story
+          </label>
+          <p className="mb-2 text-[0.78rem] font-light text-[var(--muted2)]">
+            Tell customers who you are and what you make — this shows up on your public shop
+            page once approved. You can edit it anytime from your seller dashboard.
+          </p>
+          <textarea
+            id="story"
+            rows={5}
+            maxLength={MAX_STORY_LENGTH}
+            className={inputClass}
+            value={story}
+            onChange={(e) => setStory(e.target.value)}
+            placeholder="I've been upcycling reclaimed wood into furniture since..."
+          />
+        </div>
 
         <div className="mb-5">
           <label className={labelClass} htmlFor="websiteUrl">

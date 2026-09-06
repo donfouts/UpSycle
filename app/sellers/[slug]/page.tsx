@@ -10,17 +10,17 @@ export const dynamic = "force-dynamic";
 const PAGE_SIZE = 24;
 
 interface SellerPageProps {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
   searchParams: Promise<{ page?: string }>;
 }
 
 export default async function SellerStorefrontPage({ params, searchParams }: SellerPageProps) {
-  const { id } = await params;
+  const { slug } = await params;
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number.parseInt(pageParam ?? "1", 10) || 1);
 
   const sellerProfile = await prisma.sellerProfile.findUnique({
-    where: { id },
+    where: { slug },
     include: { user: { select: { firstName: true, lastName: true, email: true } } },
   });
 
@@ -28,7 +28,7 @@ export default async function SellerStorefrontPage({ params, searchParams }: Sel
     notFound();
   }
 
-  const where = { sellerProfileId: id };
+  const where = { sellerProfileId: sellerProfile.id };
 
   const [products, totalCount] = await Promise.all([
     prisma.product.findMany({
@@ -47,7 +47,7 @@ export default async function SellerStorefrontPage({ params, searchParams }: Sel
   ]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const pageHref = (targetPage: number) => `/sellers/${id}?page=${targetPage}`;
+  const pageHref = (targetPage: number) => `/sellers/${slug}?page=${targetPage}`;
   const name = sellerDisplayName(sellerProfile);
 
   return (
@@ -57,6 +57,11 @@ export default async function SellerStorefrontPage({ params, searchParams }: Sel
         <h2 className="sec-title">
           Shop <em>{name}</em>
         </h2>
+        {sellerProfile.story && (
+          <p className="mt-4 max-w-2xl text-[0.9rem] font-light leading-loose whitespace-pre-line text-[var(--muted2)]">
+            {sellerProfile.story}
+          </p>
+        )}
         <p className="mt-2 text-[0.85rem] font-light text-[var(--muted2)]">
           {totalCount} {totalCount === 1 ? "listing" : "listings"}
         </p>

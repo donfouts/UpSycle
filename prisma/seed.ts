@@ -35,6 +35,8 @@ interface SeedSeller {
   email: string;
   firstName: string;
   lastName: string;
+  slug: string;
+  story: string;
 }
 
 const SELLERS: SeedSeller[] = [
@@ -43,18 +45,27 @@ const SELLERS: SeedSeller[] = [
     email: "hello@desertsilverco.example.com",
     firstName: "Maria",
     lastName: "Reyes",
+    slug: "desert-silver-co",
+    story:
+      "Desert Silver Co. reclaims sterling scrap and estate-sale findings from across the Southwest, reworking each piece into one-of-a-kind jewelry by hand in a small Tucson studio.",
   },
   {
     cognitoSub: "seed-cognito-seattle-glass",
     email: "studio@seattleglassworks.example.com",
     firstName: "Devon",
     lastName: "Cho",
+    slug: "seattle-glass-works",
+    story:
+      "Seattle Glass Works melts down bottle and window glass destined for the landfill into blown-glass vessels and home decor, all shaped in a converted garage studio in Ballard.",
   },
   {
     cognitoSub: "seed-cognito-high-desert-wood",
     email: "shop@highdesertwood.example.com",
     firstName: "Ellis",
     lastName: "Tran",
+    slug: "high-desert-wood",
+    story:
+      "High Desert Wood builds furniture and small goods from salvaged barnwood and storm-fallen timber sourced within a hundred miles of the Reno workshop.",
   },
 ];
 
@@ -79,6 +90,8 @@ async function seedSellers() {
       update: {},
       create: {
         userId: user.id,
+        slug: s.slug,
+        story: s.story,
         approvalStatus: SellerApprovalStatus.APPROVED,
         socialMediaUrls: [],
         supplierList: [],
@@ -115,6 +128,7 @@ async function seedPendingSellerApplication() {
     update: {},
     create: {
       userId: user.id,
+      slug: "fiber-arts-collective",
       websiteUrl: "https://fiberartscollective.example.com",
       socialMediaUrls: [
         "https://instagram.com/fiberartscollective",

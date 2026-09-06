@@ -84,7 +84,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
           {/* ═══ DETAILS ═══ */}
           <div>
             <Link
-              href={`/sellers/${product.sellerProfile.id}`}
+              href={`/sellers/${product.sellerProfile.slug}`}
               className="mb-2 inline-block text-[0.68rem] font-medium uppercase tracking-[0.12em] text-[var(--rg-core)] no-underline transition-colors hover:text-[var(--rg-light)] hover:underline"
             >
               {sellerDisplayName(product.sellerProfile)}

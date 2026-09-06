@@ -57,9 +57,14 @@ export default async function SellerProductsPage() {
             Your <em>products</em>
           </h1>
         </div>
-        <Link href="/sell/products/new" className="btn-primary">
-          + Add Product
-        </Link>
+        <div className="flex gap-3">
+          <Link href="/sell/profile" className="btn-secondary">
+            Shop Settings
+          </Link>
+          <Link href="/sell/products/new" className="btn-primary">
+            + Add Product
+          </Link>
+        </div>
       </div>
 
       {products.length === 0 ? (
