@@ -14,6 +14,10 @@ export interface AppRunnerStackProps extends cdk.StackProps {
   userPoolArn: string;
   productPhotosBucket: s3.IBucket;
   sellerVettingPhotosBucket: s3.IBucket;
+  /** CloudFront domain fronting productPhotosBucket (see storage-stack.ts) —
+   * the bucket itself blocks all public access, so uploaded photo URLs must
+   * be built from this domain, never the bucket's own S3 URL. */
+  productPhotosCdnDomain: string;
 }
 
 /**
@@ -110,6 +114,8 @@ export class AppRunnerStack extends cdk.Stack {
               { name: "COGNITO_USER_POOL_ID", value: props.userPoolId },
               { name: "COGNITO_USER_POOL_CLIENT_ID", value: props.userPoolClientId },
               { name: "PHOTOS_BUCKET_NAME", value: props.productPhotosBucket.bucketName },
+              { name: "PHOTOS_CDN_DOMAIN", value: props.productPhotosCdnDomain },
+              { name: "SELLER_VETTING_BUCKET_NAME", value: props.sellerVettingPhotosBucket.bucketName },
             ],
             // DATABASE_URL can't be handed over as one composed connection
             // string — Secrets Manager ARN references extract a single JSON

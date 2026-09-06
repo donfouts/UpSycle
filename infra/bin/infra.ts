@@ -70,6 +70,7 @@ const appRunnerStack = new AppRunnerStack(app, "UpSycle-AppRunnerStack", {
   userPoolArn: authStack.userPool.userPoolArn,
   productPhotosBucket: storageStack.productPhotosBucket,
   sellerVettingPhotosBucket: storageStack.sellerVettingPhotosBucket,
+  productPhotosCdnDomain: storageStack.distribution.distributionDomainName,
 });
 appRunnerStack.addDependency(dataStack);
 appRunnerStack.addDependency(authStack);

@@ -62,6 +62,22 @@ export class StorageStack extends cdk.Stack {
       enforceSSL: true,
       versioned: false,
       // Never fronted by CloudFront / never made public — admin review only.
+      // PUT-only CORS (no GET) — the browser needs it for the direct
+      // presigned upload; nothing fetches objects back out of this bucket
+      // cross-origin (a future admin-review page would use a
+      // server-generated presigned GET, not a browser fetch/XHR, which
+      // doesn't require CORS for simple <img> display anyway).
+      cors: [
+        {
+          allowedMethods: [s3.HttpMethods.PUT],
+          allowedOrigins: [
+            "https://UpSycleMarket.com",
+            "https://x6pim6byn3.us-west-2.awsapprunner.com",
+            "http://localhost:3000",
+          ],
+          allowedHeaders: ["*"],
+        },
+      ],
       lifecycleRules: [
         { abortIncompleteMultipartUploadAfter: cdk.Duration.days(7) },
       ],
