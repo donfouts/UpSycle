@@ -3,6 +3,7 @@ import CategoryNav from "@/components/CategoryNav";
 import CartBadge from "@/components/cart/CartBadge";
 import LogoutButton from "@/components/LogoutButton";
 import { getCurrentUser } from "@/lib/current-user";
+import { resolveSellerAuth } from "@/lib/seller-auth";
 import { CATEGORY_TREE } from "@/lib/categories";
 
 const navLinks = [
@@ -15,6 +16,7 @@ const authNavLinkClass =
 
 export default async function Header() {
   const user = await getCurrentUser();
+  const isApprovedSeller = user ? (await resolveSellerAuth()).ok : false;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-[200] flex items-center justify-between px-6 py-4 md:px-14 lg:px-20 xl:px-28 bg-[rgba(3,3,3,0.94)] backdrop-blur-[14px] border-b border-[var(--border)]">
@@ -50,10 +52,10 @@ export default async function Header() {
         ))}
         <li>
           <Link
-            href="/sell"
+            href={isApprovedSeller ? "/sell/products" : "/sell"}
             className="border border-[var(--rg-core)] text-[var(--rg-light)] px-5 py-2 text-[0.68rem] font-medium tracking-[0.13em] uppercase no-underline transition-all hover:bg-[var(--rg-core)] hover:text-[var(--black)]"
           >
-            Start Selling
+            {isApprovedSeller ? "Seller Dashboard" : "Start Selling"}
           </Link>
         </li>
         {user ? (

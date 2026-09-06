@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import LogoutButton from "@/components/LogoutButton";
 import { getIdToken } from "@/lib/session";
 import { verifyIdToken } from "@/lib/verify-token";
+import { resolveSellerAuth } from "@/lib/seller-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -25,17 +26,27 @@ export default async function AccountPage() {
     redirect("/login?redirectTo=/account");
   }
 
+  const sellerAuth = await resolveSellerAuth();
+  const isApprovedSeller = sellerAuth.ok;
+
   return (
     <section className="mx-auto max-w-2xl px-6 py-32">
       <div className="eyebrow">My Account</div>
       <h1 className="auth-title">Welcome back{email ? `, ${email}` : ""}</h1>
       <p className="auth-subtitle">You are signed in to UpSycle Market.</p>
-      <div className="mb-8">
+      <div className="mb-4 flex flex-wrap gap-3">
         <Link href="/account/orders" className="btn-secondary">
           View Order History
         </Link>
+        {isApprovedSeller && (
+          <Link href="/sell/products" className="btn-primary">
+            Go to Seller Dashboard
+          </Link>
+        )}
       </div>
-      <LogoutButton />
+      <div className="mb-8">
+        <LogoutButton />
+      </div>
     </section>
   );
 }
