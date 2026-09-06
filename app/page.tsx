@@ -21,14 +21,9 @@ const categories = [
     desc: "Necklaces, earrings, bracelets & more — reclaimed metals and stones shaped by hand.",
   },
   {
-    slug: "clothing",
-    title: "Clothing / Apparel",
-    desc: "Women's and men's pieces remade from salvaged and repurposed textiles.",
-  },
-  {
     slug: "home-goods",
     title: "Home Goods",
-    desc: "Blankets, pillows, and kitchen pieces built for everyday life.",
+    desc: "Wood working, glass blowing, and pottery — handmade pieces for everyday life.",
   },
   {
     slug: "furniture",
@@ -174,6 +169,42 @@ export default async function Home() {
             />
             <span>Discover</span>
           </div>
+        </div>
+      </section>
+
+      {/* ═══ HOW WE ARE DIFFERENT ═══ */}
+      <section className="bg-[var(--charcoal)] px-6 py-24 md:px-14">
+        <div className="sec-max mx-auto max-w-[820px] text-center">
+          <div className="eyebrow mx-auto justify-center">How We Are Different</div>
+          <h2 className="sec-title">
+            A platform independent <em>artists</em> have always deserved
+            <br className="hidden md:block" /> and never had
+          </h2>
+          <p className="mb-14 text-[0.97rem] font-light leading-loose text-[var(--muted2)]">
+            Woodworkers. Jewelers. Potters. Glass blowers. Upcycled furniture makers. These artists
+            are selling their finest work at local fairs when they deserve to reach thousands.
+            UpSycle Market gives them a permanent home &mdash; a curated worldwide showcase where
+            independent artistry is the only standard and one of a kind is the only product.
+          </p>
+
+          <div className="mx-auto mb-14 h-px w-16 bg-[var(--border)]" />
+
+          <div className="eyebrow mx-auto justify-center" style={{ color: "var(--rg-light)" }}>
+            Our Commitment
+          </div>
+          <h3 className="mb-5 font-serif text-[clamp(1.5rem,2.4vw,2.1rem)] font-normal leading-tight text-[var(--cream)]">
+            To give <span className="grad-text">ONLY</span> independent artists a stage the world
+            can actually see
+          </h3>
+          <p className="mb-5 text-[0.97rem] font-light leading-loose text-[var(--muted2)]">
+            Woodworkers. Jewelers. Potters. Glass blowers. Upcycle furniture makers. The finest
+            independent artists deserve more than a weekend audience. UpSycle Market hand-picks the
+            artists and showcases them to buyers worldwide &mdash; a permanent home beyond the
+            local market, built exclusively for true artistry.
+          </p>
+          <p className="text-[0.97rem] font-medium leading-loose text-[var(--cream)]">
+            All artists will be vetted; there will be NO commercial or resale products.
+          </p>
         </div>
       </section>
 
@@ -368,19 +399,33 @@ export default async function Home() {
           </h2>
 
           <p className="mb-7 text-[0.97rem] font-light leading-loose text-[var(--muted2)]">
-            I looked at what was out there &mdash; Etsy, Poshmark, the big resale marketplaces.
-            They&rsquo;ve opened an important door for independent sellers. But that door leads
-            into a very crowded room. A handmade upcycled vase sitting next to a factory-printed
-            phone case. A one-of-a-kind reclaimed wood table competing with drop-shipped furniture
-            from overseas. The artists I met on those back roads and market stalls &mdash; their
-            work got lost in the noise. Not because it wasn&rsquo;t remarkable. Because those
-            platforms were never built for them.
+            It started in my twenties in Chicago &mdash; working full-time, putting myself through
+            college, falling in love with beautiful things I couldn&rsquo;t afford. So I made them.
+            Thrift stores. Estate sales. Curbside finds. Piece by piece, I filled my home with
+            one-of-a-kind objects that carried history no big-box store could replicate.
+          </p>
+          <p className="mb-7 text-[0.97rem] font-light leading-loose text-[var(--muted2)]">
+            That passion never left me. After years in the corporate world, I left to build
+            something I truly believe in.
+          </p>
+
+          <p className="mb-7 text-[0.97rem] font-light leading-loose text-[var(--muted2)]">
+            Traveling this country, I found artists whose work stopped me cold &mdash; a jewelry
+            maker in New Mexico crafting pieces from reclaimed silver and desert stone, a glass
+            blower in Seattle turning salvaged glass into unrepeatable vessels of color, a potter
+            in Connecticut whose quiet, handmade work you instinctively reach out to hold. Masters,
+            every one of them. Known only to the communities lucky enough to live nearby.
           </p>
 
           <blockquote className="my-11 border-l-2 border-[var(--rg-core)] py-1 pl-8 font-serif text-[clamp(1.2rem,1.8vw,1.6rem)] italic font-light leading-snug text-[var(--cream)]">
-            &ldquo;These artists are not hobbyists. They are masters. And almost no one outside
-            their communities knows their names.&rdquo;
+            &ldquo;Masters, every one of them. Known only to the communities lucky enough to live
+            nearby.&rdquo;
           </blockquote>
+
+          <p className="mb-4 text-[0.97rem] font-light leading-loose text-[var(--muted2)]">
+            Platforms like Etsy and Poshmark opened a door &mdash; but into a very crowded room.
+            These artists get lost. Their work deserves better.
+          </p>
 
           <div className="my-12 grid grid-cols-1 gap-px bg-[var(--border)] sm:grid-cols-3">
             {storyVignettes.map((v) => (
@@ -401,15 +446,18 @@ export default async function Home() {
           </div>
 
           <p className="mb-4 text-[0.97rem] font-light leading-loose text-[var(--muted2)]">
-            I made a decision equal parts business and calling: I will keep traveling this country
-            &mdash; city by city, market by market, studio by studio &mdash; to find artists
-            creating extraordinary things in relative obscurity, and bring them home to a platform
-            built specifically for them.
+            UpSycle Market is a curated marketplace built exclusively for upcycled and handmade
+            goods. Every maker is vetted. Every item has a story. Nothing here is mass-produced.
+            Nothing here exists anywhere else.
+          </p>
+          <p className="mb-4 text-[0.97rem] font-light leading-loose text-[var(--muted2)]">
+            The upcycled goods market is projected to double by 2030. Every item sold is one less
+            in a landfill. We are not trying to be the biggest marketplace &mdash; we are trying to
+            be the most intentional one.
           </p>
           <p className="text-[0.97rem] font-light leading-loose text-[var(--muted2)]">
-            I left my corporate career to build something I&rsquo;m genuinely passionate about
-            &mdash; something truly meant to support artists. We will continue to build, one
-            artist, one road, one reimagined treasure at a time.
+            Beautiful pieces are found, many times by accident. UpSycle Market gives artists a
+            place to be found worldwide.
           </p>
 
           <div className="mt-[52px] flex flex-wrap gap-4">

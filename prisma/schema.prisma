@@ -171,8 +171,8 @@ model Address {
 // Categories (self-referential tree)
 // ---------------------------------------------------------------------------
 
-// Matches: Jewelry>{necklace,earring,bracelet,other}, Clothing/Apparel>{women's,men's},
-// Home Goods>{blanket,pillow,kitchen}, Furniture>{dresser,table,chair,other}.
+// Matches: Jewelry>{necklace,earring,bracelet,other},
+// Home Goods>{woodworking,glassblowing,pottery,other}, Furniture>{dresser,table,chair,other}.
 // Self-referential parent/children keeps the tree data-driven (seeded) rather than
 // hardcoded, so future top-level categories or subcategories don't require a schema change.
 model Category {

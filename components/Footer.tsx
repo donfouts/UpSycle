@@ -6,7 +6,6 @@ const footerCols = [
     links: [
       { href: "/browse", label: "Browse All" },
       { href: "/browse?cat=jewelry", label: "Jewelry" },
-      { href: "/browse?cat=clothing", label: "Clothing / Apparel" },
       { href: "/browse?cat=home-goods", label: "Home Goods" },
       { href: "/browse?cat=furniture", label: "Furniture" },
     ],

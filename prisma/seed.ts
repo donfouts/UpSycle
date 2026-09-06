@@ -196,7 +196,7 @@ const PRODUCTS: SeedProduct[] = [
   },
   {
     sellerIndex: 1,
-    categorySlug: "home-goods-kitchen",
+    categorySlug: "home-goods-glassblowing",
     title: "Salvaged Glass Vessel",
     description:
       "Blown from salvaged glass cullet in the studio's furnace — each vessel captures a different swirl of reclaimed color.",
@@ -208,7 +208,7 @@ const PRODUCTS: SeedProduct[] = [
   },
   {
     sellerIndex: 1,
-    categorySlug: "home-goods-kitchen",
+    categorySlug: "home-goods-glassblowing",
     title: "Reclaimed Amber Tumbler Set",
     description: "A set of four hand-blown tumblers made from reclaimed amber glass cullet.",
     priceCents: 12000,
@@ -241,19 +241,8 @@ const PRODUCTS: SeedProduct[] = [
     inventoryCount: 1,
   },
   {
-    sellerIndex: 0,
-    categorySlug: "clothing-womens",
-    title: "Indigo Resist Wrap",
-    description: "Hand-dyed indigo resist wrap sewn from repurposed cotton canvas.",
-    priceCents: 19500,
-    shippingCostCents: 900,
-    dimensions: null,
-    weightGrams: 320,
-    inventoryCount: 7,
-  },
-  {
     sellerIndex: 1,
-    categorySlug: "home-goods-blanket",
+    categorySlug: "home-goods-other",
     title: "Patchwork Wool Throw",
     description:
       "Pieced together from reclaimed wool suiting fabric scraps into a one-of-a-kind throw.",

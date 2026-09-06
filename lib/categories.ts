@@ -25,20 +25,13 @@ export const CATEGORY_TREE: CategoryNode[] = [
     ],
   },
   {
-    name: "Clothing / Apparel",
-    slug: "clothing",
-    children: [
-      { name: "Women's", slug: "clothing-womens" },
-      { name: "Men's", slug: "clothing-mens" },
-    ],
-  },
-  {
     name: "Home Goods",
     slug: "home-goods",
     children: [
-      { name: "Blankets", slug: "home-goods-blanket" },
-      { name: "Pillows", slug: "home-goods-pillow" },
-      { name: "Kitchen", slug: "home-goods-kitchen" },
+      { name: "Wood Working", slug: "home-goods-woodworking" },
+      { name: "Glass Blowing", slug: "home-goods-glassblowing" },
+      { name: "Pottery", slug: "home-goods-pottery" },
+      { name: "Other", slug: "home-goods-other" },
     ],
   },
   {
