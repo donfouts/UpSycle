@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
 
 import { prisma } from "@/lib/prisma";
-import StatusBadge from "@/components/admin/StatusBadge";
+import StatusBadge, { sellerStatusLabel } from "@/components/admin/StatusBadge";
+import AdminDataTable, { type AdminTableColumn, type AdminTableRow } from "@/components/admin/AdminDataTable";
+
+const userColumns: AdminTableColumn[] = [
+  { key: "name", label: "Name" },
+  { key: "email", label: "Email" },
+  { key: "roles", label: "Roles" },
+  { key: "sellerStatus", label: "Seller Status" },
+];
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +45,23 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
     take: RESULT_LIMIT,
   });
 
+  const userRows: AdminTableRow[] = users.map((user) => ({
+    key: user.id,
+    cells: {
+      name: { value: [user.firstName, user.lastName].filter(Boolean).join(" ") || "—" },
+      email: { value: user.email },
+      roles: { value: user.roles.length > 0 ? user.roles.map((r) => r.role).join(", ") : "—" },
+      sellerStatus: {
+        value: user.sellerProfile ? sellerStatusLabel(user.sellerProfile.approvalStatus) : "—",
+        display: user.sellerProfile ? (
+          <StatusBadge status={user.sellerProfile.approvalStatus} />
+        ) : (
+          "—"
+        ),
+      },
+    },
+  }));
+
   return (
     <section>
       <div className="eyebrow">Users</div>
@@ -60,44 +85,7 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
         </button>
       </form>
 
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Roles</th>
-              <th>Seller Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.length === 0 ? (
-              <tr>
-                <td colSpan={4}>No users match that search.</td>
-              </tr>
-            ) : (
-              users.map((user) => (
-                <tr key={user.id}>
-                  <td>{[user.firstName, user.lastName].filter(Boolean).join(" ") || "—"}</td>
-                  <td>{user.email}</td>
-                  <td>
-                    {user.roles.length > 0
-                      ? user.roles.map((r) => r.role).join(", ")
-                      : "—"}
-                  </td>
-                  <td>
-                    {user.sellerProfile ? (
-                      <StatusBadge status={user.sellerProfile.approvalStatus} />
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <AdminDataTable columns={userColumns} rows={userRows} emptyMessage="No users match that search." />
     </section>
   );
 }

@@ -1,9 +1,19 @@
 import type { Metadata } from "next";
 
 import { prisma } from "@/lib/prisma";
-import StatusBadge from "@/components/admin/StatusBadge";
+import StatusBadge, { sellerStatusLabel } from "@/components/admin/StatusBadge";
 import SellerActionButtons from "@/components/admin/SellerActionButtons";
+import AdminDataTable, { type AdminTableColumn, type AdminTableRow } from "@/components/admin/AdminDataTable";
 import { sellerTierLabel } from "@/lib/format";
+
+const sellerColumns: AdminTableColumn[] = [
+  { key: "seller", label: "Seller" },
+  { key: "email", label: "Email" },
+  { key: "listings", label: "Listings" },
+  { key: "tier", label: "Tier" },
+  { key: "status", label: "Status" },
+  { key: "actions", label: "Actions", sortable: false, filterable: false },
+];
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +37,24 @@ export default async function AdminSellersPage() {
 
   const pending = sellers.filter((s) => s.approvalStatus === "PENDING");
   const others = sellers.filter((s) => s.approvalStatus !== "PENDING");
+
+  const sellerRows: AdminTableRow[] = others.map((seller) => ({
+    key: seller.id,
+    cells: {
+      seller: { value: sellerName(seller.user) },
+      email: { value: seller.user.email },
+      listings: { value: seller._count.products },
+      tier: { value: sellerTierLabel(seller.tier) },
+      status: {
+        value: sellerStatusLabel(seller.approvalStatus),
+        display: <StatusBadge status={seller.approvalStatus} />,
+      },
+      actions: {
+        value: "",
+        display: <SellerActionButtons sellerId={seller.id} status={seller.approvalStatus} />,
+      },
+    },
+  }));
 
   return (
     <section>
@@ -135,42 +163,11 @@ export default async function AdminSellersPage() {
       <h2 className="mb-4 font-serif text-[1.3rem] font-normal text-[var(--cream)]">
         All Seller Accounts
       </h2>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Seller</th>
-              <th>Email</th>
-              <th>Listings</th>
-              <th>Tier</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {others.length === 0 ? (
-              <tr>
-                <td colSpan={6}>No approved or suspended sellers yet.</td>
-              </tr>
-            ) : (
-              others.map((seller) => (
-                <tr key={seller.id}>
-                  <td>{sellerName(seller.user)}</td>
-                  <td>{seller.user.email}</td>
-                  <td>{seller._count.products}</td>
-                  <td>{sellerTierLabel(seller.tier)}</td>
-                  <td>
-                    <StatusBadge status={seller.approvalStatus} />
-                  </td>
-                  <td>
-                    <SellerActionButtons sellerId={seller.id} status={seller.approvalStatus} />
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <AdminDataTable
+        columns={sellerColumns}
+        rows={sellerRows}
+        emptyMessage="No approved or suspended sellers yet."
+      />
     </section>
   );
 }
