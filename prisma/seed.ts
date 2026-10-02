@@ -6,10 +6,122 @@
 // — instead this script clears existing demo products/photos before
 // re-inserting, so it's safe to run repeatedly against a scratch dev DB
 // without accumulating duplicates. Do not point this at a shared/prod DB.
-import { PrismaClient, Role, SellerApprovalStatus, SellerTier, ShippingStatus } from "@prisma/client";
+import {
+  PrismaClient,
+  Role,
+  SellerApprovalStatus,
+  SellerSubscriptionStatus,
+  SellerTier,
+  ShippingStatus,
+  TierChangeReason,
+} from "@prisma/client";
 import { CATEGORY_TREE } from "../lib/categories";
 
 const prisma = new PrismaClient();
+
+// Mirrors prisma/migrations/20260930120000_add_tier_subscription_system's
+// hand-written data backfill (that migration seeds these same values via raw
+// SQL for the existing prod DB) — kept in sync so a fresh `migrate reset &&
+// db seed` on a new dev DB reaches the same state without going through that
+// migration's INSERT statements. Tier 2/3 are placeholder-zero benefits with
+// isPricingFinalized: false because Prompts/Tier_system.md never defines
+// them — see the TierPlan model comment in schema.prisma.
+const TIER_PLANS = [
+  {
+    tier: SellerTier.TIER_1,
+    name: "Tier 1",
+    monthlyPriceCents: 3999,
+    quarterlySalesTargetCents: 200_000,
+    lotteryEntriesPerPeriod: 1,
+    socialPostsPerPeriod: 1,
+    canHighlightProducts: true,
+    searchRankWeight: 10,
+    isPricingFinalized: true,
+  },
+  {
+    tier: SellerTier.TIER_2,
+    name: "Tier 2",
+    monthlyPriceCents: 2999,
+    quarterlySalesTargetCents: 50_000,
+    lotteryEntriesPerPeriod: 0,
+    socialPostsPerPeriod: 0,
+    canHighlightProducts: false,
+    searchRankWeight: 0,
+    isPricingFinalized: false,
+  },
+  {
+    tier: SellerTier.TIER_3,
+    name: "Tier 3",
+    monthlyPriceCents: 1999,
+    quarterlySalesTargetCents: 0,
+    lotteryEntriesPerPeriod: 0,
+    socialPostsPerPeriod: 0,
+    canHighlightProducts: false,
+    searchRankWeight: 0,
+    isPricingFinalized: false,
+  },
+];
+
+async function seedTierPlans() {
+  console.log("Seeding tier plans...");
+  const plans = [];
+  for (const p of TIER_PLANS) {
+    const plan = await prisma.tierPlan.upsert({
+      where: { tier: p.tier },
+      update: p,
+      create: p,
+    });
+    plans.push(plan);
+  }
+  return plans;
+}
+
+// Backfills a COMPED SellerSubscription + one SEED_BACKFILL SellerTierChange
+// row per seller, matching every existing seller's already-set `tier` —
+// accurate for demo data, since nothing has ever gone through real Stripe
+// billing. Also mirrors each seller's TierPlan.searchRankWeight onto the
+// SellerProfile.searchRankWeight cache column.
+async function seedSellerSubscriptions(
+  sellerProfiles: { id: string; tier: SellerTier }[],
+  tierPlans: { id: string; tier: SellerTier; searchRankWeight: number }[],
+) {
+  console.log("Seeding seller subscriptions...");
+  const planByTier = new Map(tierPlans.map((p) => [p.tier, p]));
+
+  for (const seller of sellerProfiles) {
+    const plan = planByTier.get(seller.tier);
+    if (!plan) continue;
+
+    await prisma.sellerSubscription.upsert({
+      where: { sellerProfileId: seller.id },
+      update: { tierPlanId: plan.id, status: SellerSubscriptionStatus.COMPED },
+      create: {
+        sellerProfileId: seller.id,
+        tierPlanId: plan.id,
+        status: SellerSubscriptionStatus.COMPED,
+      },
+    });
+
+    const hasHistory = await prisma.sellerTierChange.findFirst({
+      where: { sellerProfileId: seller.id, reason: TierChangeReason.SEED_BACKFILL },
+    });
+    if (!hasHistory) {
+      await prisma.sellerTierChange.create({
+        data: {
+          sellerProfileId: seller.id,
+          fromTier: null,
+          toTier: seller.tier,
+          reason: TierChangeReason.SEED_BACKFILL,
+        },
+      });
+    }
+
+    await prisma.sellerProfile.update({
+      where: { id: seller.id },
+      data: { searchRankWeight: plan.searchRankWeight },
+    });
+  }
+}
 
 async function seedCategories() {
   console.log("Seeding categories...");
@@ -1226,7 +1338,9 @@ async function seedBuyerOrders(products: Awaited<ReturnType<typeof seedProducts>
 
 async function main() {
   await seedCategories();
+  const tierPlans = await seedTierPlans();
   const sellerProfiles = await seedSellers();
+  await seedSellerSubscriptions(sellerProfiles, tierPlans);
   const products = await seedProducts(sellerProfiles);
   await seedBuyerOrders(products);
   await seedPendingSellerApplication();

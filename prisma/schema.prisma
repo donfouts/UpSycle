@@ -96,14 +96,101 @@ enum SellerApprovalStatus {
 }
 
 // Paid subscription tier a seller applies under / can change from their
-// dashboard. Benefits per tier and the billing that would enforce them are
-// still being defined (Phase 2) — this enum exists now so the tier a seller
-// picks is captured and visible to admins ahead of that work, not because
-// pricing/benefits are settled.
+// dashboard. See TierPlan below for the actual pricing/benefit data this
+// value keys into.
 enum SellerTier {
   TIER_1
   TIER_2
   TIER_3
+}
+
+// Data-driven per-tier pricing/benefit config, one row per SellerTier value.
+// Deliberately NOT hardcoded as enum-branching logic anywhere in app code —
+// every tier-gated behavior (billing price, benefit copy, search rank boost)
+// reads these columns, so pricing/benefits can be corrected later (Prisma
+// Studio, a raw UPDATE, or a future admin editor) with zero redeploy.
+// Tier 2/3 ship with all benefit fields zeroed/null and isPricingFinalized =
+// false because Prompts/Tier_system.md never defines them — code that
+// presents tier benefits/pricing as final (seller portal copy, search
+// ranking weight) must check isPricingFinalized rather than assume these
+// placeholder zeros are real product decisions.
+model TierPlan {
+  id                        String     @id @default(uuid())
+  tier                      SellerTier @unique
+  name                      String
+  monthlyPriceCents         Int        @default(0) // 0 = free tier (valid — Tier_system.md never finishes the billing-trigger sentence, so a $0 tier is a legitimate outcome, not a bug)
+  quarterlySalesTargetCents Int? // null = no target defined yet (Tier 2/3)
+  lotteryEntriesPerPeriod   Int        @default(0)
+  socialPostsPerPeriod      Int        @default(0)
+  benefitPeriodDays         Int        @default(30) // assumed monthly cadence — spec never states one
+  canHighlightProducts      Boolean    @default(false)
+  searchRankWeight          Int        @default(0) // mirrored onto SellerProfile.searchRankWeight for /browse ordering — see that field's comment
+  isPricingFinalized        Boolean    @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions SellerSubscription[]
+  tierChanges   SellerTierChange[]
+
+  @@map("tier_plans")
+}
+
+enum SellerSubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  COMPED // admin-granted or $0-tier — no real Stripe subscription behind it
+}
+
+// The real, billing-aware record behind a seller's tier — one per
+// SellerProfile. SellerProfile.tier/searchRankWeight remain denormalized read
+// caches (see those fields) kept in sync from here inside the same
+// transaction as every write (see lib/seller-billing.ts), so the cache can
+// never drift from this source of truth.
+model SellerSubscription {
+  id                   String                   @id @default(uuid())
+  sellerProfileId      String                   @unique
+  tierPlanId           String
+  status               SellerSubscriptionStatus @default(COMPED)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?                  @unique
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean                  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  tierPlan      TierPlan      @relation(fields: [tierPlanId], references: [id], onDelete: Restrict)
+
+  @@map("seller_subscriptions")
+}
+
+enum TierChangeReason {
+  SELLER_CHECKOUT // seller subscribed/changed tier themselves via Stripe Checkout
+  STRIPE_SYNC // webhook-driven change (portal upgrade/downgrade/cancel)
+  ADMIN_OVERRIDE // admin comp, no Stripe involved
+  SEED_BACKFILL // demo-data / migration backfill row
+}
+
+// Append-only audit trail of every tier transition, however it happened.
+model SellerTierChange {
+  id              String           @id @default(uuid())
+  sellerProfileId String
+  fromTier        SellerTier?
+  toTier          SellerTier
+  reason          TierChangeReason
+  changedByUserId String? // admin User.id for ADMIN_OVERRIDE; null for STRIPE_SYNC/SEED_BACKFILL
+  stripeEventId   String?          @unique // dedupes webhook retries; Postgres allows multiple NULLs in a unique index
+  note            String? // admin override reason, or null
+  createdAt       DateTime         @default(now())
+
+  sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  tierPlan      TierPlan      @relation(fields: [toTier], references: [tier], onDelete: Restrict)
+
+  @@map("seller_tier_changes")
 }
 
 model SellerProfile {
@@ -129,7 +216,20 @@ model SellerProfile {
   expectedMonthlySales Int? // expected volume of sales per month
   supplierList         String[] // e.g. "Home Depot", "Hobby Lobby"
   approvalStatus       SellerApprovalStatus @default(PENDING)
-  tier                 SellerTier           @default(TIER_1) // chosen at application, changeable from /sell/profile
+  // Denormalized read cache of SellerSubscription.tierPlan.tier — kept in
+  // sync (same transaction) by lib/seller-billing.ts's applyTierChange on
+  // every subscribe/upgrade/downgrade/cancel/admin-override. Exists because
+  // this value is read directly, cheaply, in hot paths (admin table, seller
+  // portal, /browse ordering) that shouldn't each join through
+  // SellerSubscription -> TierPlan. SellerSubscription is the source of
+  // truth; never write this field outside applyTierChange.
+  tier                 SellerTier           @default(TIER_1)
+  // Denormalized copy of TierPlan.searchRankWeight for the seller's current
+  // tier — lets /browse's Product query sort with a single 1-level relation
+  // orderBy (sellerProfile.searchRankWeight) instead of a 2-level join
+  // through SellerSubscription -> TierPlan on every listing request. Synced
+  // by the same applyTierChange helper as `tier` above.
+  searchRankWeight     Int                  @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -138,6 +238,8 @@ model SellerProfile {
   samplePhotos SellerSamplePhoto[]
   products     Product[]
   orderItems   OrderItem[]
+  subscription SellerSubscription?
+  tierChanges  SellerTierChange[]
 
   @@map("seller_profiles")
 }
