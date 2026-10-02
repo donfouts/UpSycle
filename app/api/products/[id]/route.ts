@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { reorderProductPriority } from "@/lib/product-priority";
 import { resolveSellerAuth, sellerAuthErrorResponse } from "@/lib/seller-auth";
 import {
   MAX_PRODUCT_PHOTOS,
@@ -22,6 +23,7 @@ import {
 
 type EditProductInput = Partial<ProductInput> & {
   inventoryDelta?: number;
+  marketingPriority?: number;
 };
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -79,6 +81,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
   }
   errors.push(...validateInventoryAdjustment(body));
+  if (body.marketingPriority !== undefined && !Number.isInteger(body.marketingPriority)) {
+    errors.push("Marketing priority must be a whole number.");
+  }
 
   let category: { id: string } | null = null;
   if (body.categoryId !== undefined) {
@@ -108,6 +113,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         await tx.productPhoto.createMany({
           data: photoUrls.map((url, index) => ({ productId: id, url, position: index })),
         });
+      }
+
+      if (body.marketingPriority !== undefined) {
+        await reorderProductPriority(tx, existing.sellerProfileId, id, body.marketingPriority);
       }
 
       return tx.product.update({

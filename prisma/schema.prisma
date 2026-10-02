@@ -334,6 +334,15 @@ model Product {
   weightGrams       Int?
   inventoryCount    Int     @default(0)
 
+  // Seller-assigned display rank among their own listings (1 = highest
+  // priority), used to order/place their products elsewhere on the site.
+  // Dense and unique per seller (no ties, no gaps) — always a full 1..N
+  // permutation of that seller's product count. Assigned on create (appended
+  // to the end) and reassigned via lib/product-priority.ts's
+  // reorderProductPriority whenever a seller changes it, which shifts every
+  // product between the old and new rank by one to keep the sequence dense.
+  marketingPriority Int
+
   proofOfHandcraftedUrl String // required proof-of-handcrafted upload (S3 key/URL)
 
   createdAt DateTime @default(now())
@@ -345,6 +354,7 @@ model Product {
   orderItems    OrderItem[]
   questions     ProductQuestion[]
 
+  @@unique([sellerProfileId, marketingPriority])
   @@map("products")
 }
 

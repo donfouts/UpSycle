@@ -1208,11 +1208,17 @@ async function seedProducts(sellerProfiles: Awaited<ReturnType<typeof seedSeller
 
   console.log("Seeding products...");
   const sellerBySlug = new Map(sellerProfiles.map((s) => [s.slug, s]));
+  // Dense per-seller rank, assigned in PRODUCTS' array order — mirrors what
+  // the real create API does (append to the end of that seller's ranking).
+  const priorityBySeller = new Map<string, number>();
   const createdProducts = [];
   for (const [i, p] of PRODUCTS.entries()) {
     const category = await prisma.category.findUniqueOrThrow({ where: { slug: p.categorySlug } });
     const seller = sellerBySlug.get(p.sellerSlug);
     if (!seller) throw new Error(`Unknown sellerSlug in PRODUCTS: ${p.sellerSlug}`);
+
+    const marketingPriority = (priorityBySeller.get(p.sellerSlug) ?? 0) + 1;
+    priorityBySeller.set(p.sellerSlug, marketingPriority);
 
     const product = await prisma.product.create({
       data: {
@@ -1225,6 +1231,7 @@ async function seedProducts(sellerProfiles: Awaited<ReturnType<typeof seedSeller
         dimensions: p.dimensions,
         weightGrams: p.weightGrams,
         inventoryCount: p.inventoryCount,
+        marketingPriority,
         // Placeholder — real sellers upload a proof-of-handcrafted photo to S3 at signup.
         proofOfHandcraftedUrl: `https://picsum.photos/seed/upsycle-proof-${i}/800/600`,
         photos: {

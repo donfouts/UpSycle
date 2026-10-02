@@ -41,6 +41,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const product = await prisma.$transaction(async (tx) => {
+      // New listings are appended to the end of this seller's priority
+      // ranking — never defaults to 1, which would bump an existing product.
+      const existingCount = await tx.product.count({
+        where: { sellerProfileId: auth.seller.sellerProfileId },
+      });
+
       return tx.product.create({
         data: {
           sellerProfileId: auth.seller.sellerProfileId,
@@ -53,6 +59,7 @@ export async function POST(request: NextRequest) {
           dimensions: input.dimensions?.trim() || null,
           weightGrams: input.weightGrams ?? null,
           inventoryCount: input.inventoryCount,
+          marketingPriority: existingCount + 1,
           proofOfHandcraftedUrl: input.proofOfHandcraftedUrl.trim(),
           photos: {
             create: photoUrls.map((url, index) => ({ url, position: index })),

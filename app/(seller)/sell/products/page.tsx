@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSellerPageAuth, sellerAuthFailureMessage } from "@/lib/seller-auth";
 import { formatPriceCents, stockLabel } from "@/lib/format";
 import InventoryAdjuster from "@/components/seller/InventoryAdjuster";
+import PriorityControl from "@/components/seller/PriorityControl";
 
 export const metadata: Metadata = {
   title: "My Products — UpSycle Market",
@@ -44,7 +45,7 @@ export default async function SellerProductsPage() {
 
   const products = await prisma.product.findMany({
     where: { sellerProfileId: auth.seller.sellerProfileId },
-    orderBy: { createdAt: "desc" },
+    orderBy: { marketingPriority: "asc" },
     include: { photos: { orderBy: { position: "asc" }, take: 1 } },
   });
 
@@ -56,6 +57,12 @@ export default async function SellerProductsPage() {
           <h1 className="sec-title">
             Your <em>products</em>
           </h1>
+          {products.length > 1 && (
+            <p className="mt-2 max-w-md text-[0.8rem] font-light text-[var(--muted2)]">
+              Listed in Marketing Priority order — use the arrows to rerank which of your products get top
+              placement.
+            </p>
+          )}
         </div>
         <div className="flex gap-3">
           <Link href="/sell/profile" className="btn-secondary">
@@ -113,6 +120,15 @@ export default async function SellerProductsPage() {
                   >
                     {stock.label}
                   </span>
+                </div>
+
+                <div className="shrink-0">
+                  <div className={labelText}>Marketing Priority</div>
+                  <PriorityControl
+                    productId={product.id}
+                    priority={product.marketingPriority}
+                    productCount={products.length}
+                  />
                 </div>
 
                 <div className="shrink-0">
