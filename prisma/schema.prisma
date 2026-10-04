@@ -14,15 +14,23 @@
 // This schema stores only a Cognito user id (`cognitoSub`) on User — no password field.
 
 generator client {
-  provider      = "prisma-client-js"
-  // "native" is correct now that the app deploys as a Docker container
-  // (see infra/lib/stacks/apprunner-stack.ts + Dockerfile): `prisma
-  // generate` runs inside the same build stage/base image the app actually
-  // runs in, so there's no cross-platform binary mismatch the way there was
-  // deploying to Amplify Hosting's Lambda-based "Web Compute" runtime
-  // (which needed an explicit rhel-openssl-3.0.x target — no longer
-  // applicable, see git history for that saga).
-  binaryTargets = ["native"]
+  provider = "prisma-client-js"
+  // "native" covers the App Runner Docker build (infra/lib/stacks/apprunner-stack.ts
+  // + Dockerfile: `prisma generate` runs inside the same build stage/base image the
+  // app actually runs in, so no cross-platform mismatch there — see git history for
+  // the Amplify-era saga that originally needed an explicit rhel-openssl-3.0.x
+  // target, removed once Amplify was dropped).
+  //
+  // "rhel-openssl-3.0.x" came back for a different reason: the weekly placement
+  // Lambda (infra/lib/stacks/placement-stack.ts) runs on Amazon Linux 2023
+  // (glibc, OpenSSL 3.0), not this dev machine, and NodejsFunction bundling copies
+  // the generated client's engine binary as-is rather than rebuilding it — see
+  // infra/lambda/placement/copy-prisma-engine.js. `prisma generate` must be run on
+  // (or cross-generate for) a Lambda-compatible platform before `cdk deploy
+  // UpSycle-PlacementStack` is run for real, or the Lambda will ship whichever
+  // engine the generating machine happens to be (e.g. a Windows binary from a local
+  // dev box), which crashes at runtime.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -234,12 +242,14 @@ model SellerProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  samplePhotos SellerSamplePhoto[]
-  products     Product[]
-  orderItems   OrderItem[]
-  subscription SellerSubscription?
-  tierChanges  SellerTierChange[]
+  user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  samplePhotos  SellerSamplePhoto[]
+  products      Product[]
+  orderItems    OrderItem[]
+  subscription  SellerSubscription?
+  tierChanges   SellerTierChange[]
+  lotteryWins   LotteryWinner[]
+  slotPurchases FeaturedSlotPurchase[]
 
   @@map("seller_profiles")
 }
@@ -309,9 +319,11 @@ model Category {
   slug     String  @unique
   parentId String?
 
-  parent   Category?  @relation("CategoryToSubcategory", fields: [parentId], references: [id], onDelete: Restrict)
-  children Category[] @relation("CategoryToSubcategory")
-  products Product[]
+  parent         Category?              @relation("CategoryToSubcategory", fields: [parentId], references: [id], onDelete: Restrict)
+  children       Category[]             @relation("CategoryToSubcategory")
+  products       Product[]
+  lotteryWinners LotteryWinner[]
+  slotPurchases  FeaturedSlotPurchase[]
 
   @@map("categories")
 }
@@ -473,4 +485,98 @@ model OrderItem {
   sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Restrict)
 
   @@map("order_items")
+}
+
+// ---------------------------------------------------------------------------
+// Weekly placement: Home/Category/Sub-Category featured lottery + paid slots
+// ---------------------------------------------------------------------------
+// Implements Prompts/product_layout.md's "lottery system": a weekly Lambda
+// draws lottery winners (Saturday) into a PENDING PlacementPeriod, sellers may
+// buy a paid slot for that period first-come-first-served from the moment of
+// the draw, and a second Lambda run (Sunday 00:00) locks purchased slots,
+// random-fills any unsold ones, and flips the period ACTIVE (archiving the
+// previous one). The site only ever renders the current ACTIVE period's rows
+// for Home/Category/Sub-Category pages — buyers never see rank/slot numbers,
+// same rule as Product.marketingPriority above.
+//
+// Which product gets shown for a winning seller is NOT stored here — render
+// time resolves it from Product.marketingPriority (the seller's #1-ranked
+// product), except where a seller holds multiple simultaneous placements in
+// the same period, in which case featuredProductId below pins the specific
+// product the cascade rule (product_layout.md: Home > Sub-Category > Category
+// > randomly-assigned paid slot) assigned them, set once by the Sunday
+// finalize step. A seller-purchased (non-random-fill) paid slot always uses
+// their #1 product and leaves featuredProductId null.
+
+enum PlacementPageType {
+  HOME
+  CATEGORY
+  SUBCATEGORY
+}
+
+enum PlacementPeriodStatus {
+  PENDING // drawn Saturday, purchase window open, not live yet
+  ACTIVE // currently live on the site
+  ARCHIVED // superseded by a newer ACTIVE period
+}
+
+model PlacementPeriod {
+  id       String                @id @default(uuid())
+  startsAt DateTime // Sunday 00:00 this period goes/went live
+  endsAt   DateTime // following Sunday 00:00
+  status   PlacementPeriodStatus @default(PENDING)
+  drawnAt  DateTime              @default(now())
+
+  winners LotteryWinner[]
+  slots   FeaturedSlotPurchase[]
+
+  @@map("placement_periods")
+}
+
+// One lottery-winning seller for one page/category in one period. `rank` is
+// draw order only (tie-break / cascade input), never shown to buyers.
+model LotteryWinner {
+  id                String            @id @default(uuid())
+  periodId          String
+  pageType          PlacementPageType
+  categoryId        String? // null for HOME; a top-level Category.id for CATEGORY; a leaf Category.id for SUBCATEGORY
+  sellerProfileId   String
+  rank              Int
+  featuredProductId String? // set by the Sunday finalize cascade when this seller holds >1 placement this period; null = use their #1 marketingPriority product
+  createdAt         DateTime          @default(now())
+
+  period        PlacementPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  sellerProfile SellerProfile   @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  category      Category?       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([periodId, pageType, categoryId, sellerProfileId])
+  @@unique([periodId, pageType, categoryId, rank])
+  @@index([periodId, pageType, categoryId])
+  @@map("lottery_winners")
+}
+
+// One paid (or random-filled) slot for one page/category in one period.
+// `slotNumber` is a dense 1..SLOT_COUNT draw position within
+// (period, pageType, categoryId) — see lib/placement.ts for the slot-count
+// constant and purchase/fill logic.
+model FeaturedSlotPurchase {
+  id                String            @id @default(uuid())
+  periodId          String
+  pageType          PlacementPageType
+  categoryId        String? // null for HOME
+  slotNumber        Int
+  sellerProfileId   String
+  priceCents        Int
+  isRandomFill      Boolean           @default(false) // true = system auto-filled an unsold slot at Sunday finalize, not a real purchase
+  featuredProductId String? // cascade-assigned product when isRandomFill and the seller holds other placements this period; null = use their #1 marketingPriority product
+  stripePaymentId   String? // null when isRandomFill
+  purchasedAt       DateTime          @default(now())
+
+  period        PlacementPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  sellerProfile SellerProfile   @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  category      Category?       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([periodId, pageType, categoryId, slotNumber])
+  @@index([periodId, pageType, categoryId])
+  @@map("featured_slot_purchases")
 }

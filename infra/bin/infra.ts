@@ -9,6 +9,7 @@ import { EmailStack } from "../lib/stacks/email-stack";
 import { AppRunnerStack } from "../lib/stacks/apprunner-stack";
 import { DnsStack } from "../lib/stacks/dns-stack";
 import { CicdStack } from "../lib/stacks/cicd-stack";
+import { PlacementStack } from "../lib/stacks/placement-stack";
 
 const app = new cdk.App();
 
@@ -44,6 +45,13 @@ const dataStack = new DataStack(app, "UpSycle-DataStack", {
   vpc: networkStack.vpc,
 });
 dataStack.addDependency(networkStack);
+
+const placementStack = new PlacementStack(app, "UpSycle-PlacementStack", {
+  env,
+  description: "UpSycle: Lambda + EventBridge cron running the weekly Home/Category/Sub-Category featured-placement lottery draw (Saturday) and finalize (Sunday 00:00 UTC)",
+  dbSecret: dataStack.dbSecret,
+});
+placementStack.addDependency(dataStack);
 
 const authStack = new AuthStack(app, "UpSycle-AuthStack", {
   env,

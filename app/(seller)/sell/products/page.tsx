@@ -65,6 +65,9 @@ export default async function SellerProductsPage() {
           )}
         </div>
         <div className="flex gap-3">
+          <Link href="/sell/marketing" className="btn-secondary">
+            Marketing
+          </Link>
           <Link href="/sell/profile" className="btn-secondary">
             Shop Settings
           </Link>

@@ -136,7 +136,7 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
           {CATEGORY_TREE.map((topCat) => (
             <Link
               key={topCat.slug}
-              href={`/browse?cat=${topCat.slug}`}
+              href={`/category/${topCat.slug}`}
               className={`shrink-0 whitespace-nowrap border px-4 py-2 text-[0.65rem] uppercase tracking-[0.1em] no-underline ${
                 cat === topCat.slug
                   ? "border-[var(--rg-core)] text-[var(--rg-light)]"

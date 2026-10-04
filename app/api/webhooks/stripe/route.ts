@@ -14,9 +14,11 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
+import type { PlacementPageType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getStripeClient, getStripeWebhookSecret } from "@/lib/stripe";
 import { decodeCartMetadataItems } from "@/lib/cart";
+import { PAID_SLOT_COUNT, placementSlotPriceCents } from "@/lib/placement";
 
 export async function POST(request: NextRequest) {
   const signature = request.headers.get("stripe-signature");
@@ -43,11 +45,20 @@ export async function POST(request: NextRequest) {
 
   const session = event.data.object as Stripe.Checkout.Session;
   const metadata = session.metadata ?? {};
+  const stripePaymentId =
+    typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? session.id;
+
+  // Placement-slot purchases (app/api/sellers/marketing/purchase/route.ts)
+  // use a completely different metadata shape (no `items`/`buyerId`) — branch
+  // out before the cart-order logic below, which assumes `metadata.items`
+  // exists and would misfire ("missing order metadata") on this shape.
+  if (metadata.kind === "placement_slot") {
+    return handlePlacementSlotPurchase(metadata, stripePaymentId, session.id);
+  }
+
   const buyerId = metadata.buyerId;
   const shippingAddressId = metadata.shippingAddressId;
   const lines = decodeCartMetadataItems(metadata.items);
-  const stripePaymentId =
-    typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? session.id;
 
   // An address is only required if at least one line actually ships — an
   // all-pickup order legitimately has no shippingAddressId. Re-derived from
@@ -132,5 +143,98 @@ export async function POST(request: NextRequest) {
     // succeeded, so we want another attempt at recording the Order rather
     // than silently losing it.
     return NextResponse.json({ error: "Failed to record order." }, { status: 500 });
+  }
+}
+
+/**
+ * checkout.session.completed for a placement-slot purchase
+ * (app/api/sellers/marketing/purchase/route.ts). Creates the
+ * FeaturedSlotPurchase row only now that Stripe has confirmed payment —
+ * same "don't trust an uncompleted session" principle as the cart-order
+ * path above.
+ */
+async function handlePlacementSlotPurchase(
+  metadata: Record<string, string>,
+  stripePaymentId: string,
+  sessionId: string,
+): Promise<NextResponse> {
+  const periodId = metadata.periodId;
+  const pageType = metadata.pageType as PlacementPageType | undefined;
+  const categoryId = metadata.categoryId ? metadata.categoryId : null;
+  const sellerProfileId = metadata.sellerProfileId;
+
+  if (!periodId || !pageType || !sellerProfileId) {
+    console.error("Stripe webhook: placement_slot checkout.session.completed missing expected metadata", {
+      sessionId,
+    });
+    return NextResponse.json({ error: "Missing placement slot metadata." }, { status: 400 });
+  }
+
+  // Idempotency: Stripe may retry webhook delivery. If we already created a
+  // FeaturedSlotPurchase for this payment, don't create a second one.
+  const existing = await prisma.featuredSlotPurchase.findFirst({ where: { stripePaymentId } });
+  if (existing) {
+    return NextResponse.json({ received: true, slotPurchaseId: existing.id });
+  }
+
+  try {
+    const slotPurchase = await prisma.$transaction(async (tx) => {
+      // Re-validate slot availability inside the transaction rather than
+      // trusting the slotNumber the purchase route picked earlier: two
+      // sellers can race for the same number between session creation and
+      // webhook confirmation. The buyer has already been charged at this
+      // point, so instead of failing an already-paid purchase if their
+      // originally-picked slot got taken first, we just insert at the next
+      // available slotNumber for this (periodId, pageType, categoryId).
+      const taken = await tx.featuredSlotPurchase.findMany({
+        where: { periodId, pageType, categoryId },
+        select: { slotNumber: true },
+      });
+      const takenSet = new Set(taken.map((s) => s.slotNumber));
+      let slotNumber: number | null = null;
+      for (let n = 1; n <= PAID_SLOT_COUNT; n++) {
+        if (!takenSet.has(n)) {
+          slotNumber = n;
+          break;
+        }
+      }
+      if (slotNumber === null) {
+        // All 20 slots filled by the time payment confirmed — extremely
+        // unlikely (would mean 20 successful purchases raced this one) but
+        // flagged for manual follow-up/refund rather than silently dropped.
+        console.error("PLACEMENT SLOT OVERSOLD: no slotNumber available at webhook time — needs refund/manual follow-up", {
+          periodId,
+          pageType,
+          categoryId,
+          sellerProfileId,
+          stripePaymentId,
+        });
+        throw new Error("No placement slot available.");
+      }
+
+      return tx.featuredSlotPurchase.create({
+        data: {
+          periodId,
+          pageType,
+          categoryId,
+          slotNumber,
+          sellerProfileId,
+          priceCents: placementSlotPriceCents(pageType),
+          isRandomFill: false,
+          stripePaymentId,
+        },
+      });
+    });
+
+    return NextResponse.json({ received: true, slotPurchaseId: slotPurchase.id });
+  } catch (err) {
+    console.error("Failed to create FeaturedSlotPurchase after Stripe payment confirmation:", err, {
+      sessionId,
+      stripePaymentId,
+    });
+    // Return 500 so Stripe retries the webhook — the payment already
+    // succeeded, so we want another attempt at recording the slot rather
+    // than silently losing it.
+    return NextResponse.json({ error: "Failed to record placement slot purchase." }, { status: 500 });
   }
 }

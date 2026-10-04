@@ -33,13 +33,14 @@ limitations, not gaps in this tagging setup; every taggable resource type is tag
 | `UpSycle-AuthStack` | Cognito User Pool (Essentials tier) with `buyer` / `seller` / `admin` groups (a user can belong to more than one, satisfying Requirement.MD's multi-role rule) and a public (no-secret) User Pool Client for the Next.js app, configured for Authorization Code + PKCE. |
 | `UpSycle-StorageStack` | Two S3 buckets — product photos (public via CloudFront + Origin Access Control, bucket itself stays private) and seller vetting sample photos (private, admin-review only, never fronted by CloudFront) — plus the CloudFront distribution. |
 | `UpSycle-EmailStack` | SES domain identity for `UpSycleMarket.com` with Easy DKIM, for OTP account-recovery email and seller-referral invites. |
+| `UpSycle-PlacementStack` | One Lambda (`upsycle-placement-jobs`, built via `aws-lambda-nodejs`'s `NodejsFunction` from `lambda/placement/handler.ts`) plus two EventBridge cron `Rule`s running the weekly Home/Category/Sub-Category featured-placement lottery: **Saturday 02:00 UTC** draws that week's lottery winners (`{"action":"draw"}`, also opening the paid-slot purchase window) and **Sunday 00:00 UTC** finalizes it (`{"action":"finalize"}` — random-fills unsold paid slots, runs the cross-placement product cascade, and flips the period live). Business logic lives in the main app's `lib/placement-jobs.ts`, imported by the handler via a relative `require()`, not duplicated here — see that handler's file header for why. The Lambda fetches `DataStack`'s DB secret itself at cold start (no App-Runner-style `runtimeEnvironmentSecrets` equivalent exists for Lambda) via a `DB_SECRET_ARN` env var the function's role is granted `secretsmanager:GetSecretValue` on. |
 | `UpSycle-AppRunnerStack` | AWS App Runner service running the Next.js app as a Docker container (built from `../Dockerfile` via `DockerImageAsset`, pushed to an auto-managed ECR repo during `cdk deploy`). Replaces the original Amplify Hosting design — see "Why App Runner, not Amplify" below. |
 | `UpSycle-DnsStack` | Route 53 hosted zone for `UpSycleMarket.com` plus a `www` CNAME to the App Runner service's default domain. **Not yet deployed** — no need until the domain cutover (issue #22) is actually happening. |
 | `UpSycle-CicdStack` | GitHub OIDC identity provider + an IAM role (`UpSycle-GitHubActionsDeployRole`) that `.github/workflows/deploy.yml` assumes to run `cdk deploy UpSycle-AppRunnerStack` on every push to `main` — no AWS access keys stored as GitHub secrets. |
 
 Dependency order (enforced via `addDependency` in `bin/infra.ts`):
-`NetworkStack → DataStack`, `DataStack/AuthStack/StorageStack → AppRunnerStack → DnsStack`.
-`EmailStack` and `CicdStack` are independent.
+`NetworkStack → DataStack`, `DataStack/AuthStack/StorageStack → AppRunnerStack → DnsStack`,
+`DataStack → PlacementStack`. `EmailStack` and `CicdStack` are independent.
 
 ## Why App Runner, not Amplify Hosting
 
@@ -111,6 +112,15 @@ Optional context overrides (defaults shown), e.g. `npx cdk synth -c domainName=e
    private subnet + VPC Connector is a viable hardening follow-up, just not
    done yet since the public+password-protected setup is already deployed,
    seeded, and confirmed working.
+6. **`PlacementStack` isn't wired into CI/CD** — `.github/workflows/deploy.yml`
+   only runs `cdk deploy UpSycle-AppRunnerStack` (see #1 above), so this
+   stack needs a manual first `cdk deploy UpSycle-PlacementStack` (and any
+   future redeploys after Lambda-code-only changes). It also needs
+   `prisma/schema.prisma`'s `binaryTargets` to include a Lambda-compatible
+   target (currently `["native"]`, which bakes in whichever platform most
+   recently ran `prisma generate` — fine for the Docker-built App Runner
+   image, not fine for this Lambda's query engine binary) before a real
+   deploy will actually work at runtime.
 
 ## Estimated monthly cost
 
@@ -127,8 +137,9 @@ traffic level; Route 53 (once `DnsStack` deploys) adds ~$1.50/mo.
 
 - No Lambda + API Gateway stack yet for the "heavier/async work" tier
   (image processing on upload, Stripe webhook handling) mentioned in the infra
-  plan — no such Lambda functions exist in the app yet to deploy; add a
-  `ComputeStack` when that code exists.
+  plan — `PlacementStack`'s Lambda is EventBridge-cron-triggered only, not
+  API-Gateway-fronted; add a `ComputeStack` when request-driven Lambda code
+  exists.
 - No Interface VPC Endpoints (e.g. for SES) — per the infra plan, only add
   one if a future Lambda genuinely needs both RDS and a public AWS API from
   inside the VPC; none of the current stacks need this.

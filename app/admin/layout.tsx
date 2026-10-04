@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 const NAV_LINKS = [
   { href: "/admin/sellers", label: "Sellers" },
   { href: "/admin/users", label: "Users" },
+  { href: "/admin/placement", label: "Placement" },
 ];
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {

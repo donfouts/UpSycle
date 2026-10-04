@@ -40,7 +40,7 @@ export default function CategoryNav({
           return (
             <div key={cat.slug}>
               <Link
-                href={`/browse?cat=${cat.slug}`}
+                href={`/category/${cat.slug}`}
                 className={`block font-serif text-[1.05rem] no-underline transition-colors ${
                   isActiveParent ? "text-[var(--rg-light)]" : "text-[var(--cream)] hover:text-[var(--rg-light)]"
                 }`}
@@ -52,7 +52,7 @@ export default function CategoryNav({
                   {cat.children.map((child) => (
                     <li key={child.slug}>
                       <Link
-                        href={`/browse?cat=${child.slug}`}
+                        href={`/category/${cat.slug}/${child.slug}`}
                         className={`text-[0.8rem] no-underline transition-colors ${
                           activeSlug === child.slug
                             ? "text-[var(--rg-light)]"
@@ -92,7 +92,7 @@ export default function CategoryNav({
           {categories.map((cat) => (
             <div key={cat.slug} className="bg-[var(--charcoal)] p-5">
               <Link
-                href={`/browse?cat=${cat.slug}`}
+                href={`/category/${cat.slug}`}
                 className="mb-3 block font-serif text-[0.98rem] text-[var(--cream)] no-underline transition-colors hover:text-[var(--rg-light)]"
               >
                 {cat.name}
@@ -101,7 +101,7 @@ export default function CategoryNav({
                 {cat.children?.map((child) => (
                   <li key={child.slug}>
                     <Link
-                      href={`/browse?cat=${child.slug}`}
+                      href={`/category/${cat.slug}/${child.slug}`}
                       className="text-[0.72rem] text-[var(--muted2)] no-underline transition-colors hover:text-[var(--rg-light)]"
                     >
                       {child.name}

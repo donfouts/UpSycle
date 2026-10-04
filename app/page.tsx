@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getActivePlacementPeriod, resolveFeaturedProduct } from "@/lib/placement";
 import ProductCard from "@/components/ProductCard";
+import FeaturedBadge from "@/components/FeaturedBadge";
 
 // Featured products below are fetched live from the DB, so this page can't
 // be statically generated at build time (no DATABASE_URL available then).
@@ -107,18 +109,47 @@ const storyVignettes = [
   },
 ];
 
+type ResolvedProduct = NonNullable<Awaited<ReturnType<typeof resolveFeaturedProduct>>>;
+
 export default async function Home() {
-  const featuredProducts = await prisma.product.findMany({
-    where: { inventoryCount: { gt: 0 } },
-    orderBy: { createdAt: "desc" },
-    take: 6,
-    include: {
-      photos: { orderBy: { position: "asc" }, take: 1 },
-      sellerProfile: {
-        include: { user: { select: { firstName: true, lastName: true, email: true } } },
+  const activePeriod = await getActivePlacementPeriod();
+
+  let featuredProducts: ResolvedProduct[] = [];
+  let highlightedProducts: ResolvedProduct[] = [];
+
+  if (activePeriod) {
+    const winners = await prisma.lotteryWinner.findMany({
+      where: { periodId: activePeriod.id, pageType: "HOME", categoryId: null },
+      orderBy: { rank: "asc" },
+    });
+    const resolvedWinners = await Promise.all(
+      winners.map((w) => resolveFeaturedProduct(w.sellerProfileId, w.featuredProductId)),
+    );
+    featuredProducts = resolvedWinners.filter((p): p is ResolvedProduct => p !== null);
+
+    const slots = await prisma.featuredSlotPurchase.findMany({
+      where: { periodId: activePeriod.id, pageType: "HOME", categoryId: null },
+      orderBy: { slotNumber: "asc" },
+    });
+    const resolvedSlots = await Promise.all(
+      slots.map((s) => resolveFeaturedProduct(s.sellerProfileId, s.featuredProductId)),
+    );
+    highlightedProducts = resolvedSlots.filter((p): p is ResolvedProduct => p !== null);
+  } else {
+    // No weekly draw has run yet — fall back to the original "newest first"
+    // query so the homepage never looks empty pre-launch.
+    featuredProducts = await prisma.product.findMany({
+      where: { inventoryCount: { gt: 0 } },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      include: {
+        photos: { orderBy: { position: "asc" }, take: 1 },
+        sellerProfile: {
+          include: { user: { select: { firstName: true, lastName: true, email: true } } },
+        },
       },
-    },
-  });
+    });
+  }
 
   return (
     <>
@@ -240,7 +271,30 @@ export default async function Home() {
               </Link>
             </div>
             <div className="grid grid-cols-1 gap-px bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-3">
-              {featuredProducts.map((product) => (
+              {featuredProducts.map((product) =>
+                activePeriod ? (
+                  <FeaturedBadge key={product.id} product={product} />
+                ) : (
+                  <ProductCard key={product.id} product={product} />
+                ),
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ═══ HIGHLIGHTED ARTISTS ═══ */}
+      {highlightedProducts.length > 0 && (
+        <section className="bg-[var(--deep)] px-6 py-24 md:px-14">
+          <div className="sec-max">
+            <div className="mb-12">
+              <div className="eyebrow">Promoted This Week</div>
+              <h2 className="sec-title mb-0">
+                Highlighted <em>Artists</em>
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 gap-px bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-3">
+              {highlightedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
@@ -259,7 +313,7 @@ export default async function Home() {
             {categories.map((cat) => (
               <Link
                 key={cat.slug}
-                href={`/browse?cat=${cat.slug}`}
+                href={`/category/${cat.slug}`}
                 className="block bg-[var(--charcoal)] p-8 no-underline transition-colors hover:bg-[var(--panel)]"
               >
                 <h3 className="mb-3 font-serif text-2xl font-normal leading-tight text-[var(--cream)]">
