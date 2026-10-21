@@ -30,6 +30,15 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install app dependencies
+        # The weekly placement Lambda (infra/lib/stacks/placement-stack.ts)
+        # bundles against this app root's own node_modules (@prisma/client +
+        # the generated .prisma engines, per schema.prisma's binaryTargets)
+        # rather than installing its own copy — `cdk deploy`'s asset-staging
+        # step fails without this (ENOENT on node_modules/@prisma/client) since
+        # nothing else on this runner ever installs the app's dependencies.
+        run: npm ci
+
       - name: Install infra dependencies
         working-directory: infra
         run: npm ci
