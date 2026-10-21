@@ -64,6 +64,15 @@ export class PlacementStack extends cdk.Stack {
       entry: path.join(__dirname, "..", "..", "lambda", "placement", "handler.ts"),
       handler: "handler",
       runtime: lambda.Runtime.NODEJS_20_X,
+      // Without these, NodejsFunction's auto-detected lock file is
+      // infra/package-lock.json (nearest to `entry`), which makes
+      // `infra/` the Docker bundling projectRoot/mount -- but the
+      // bundling `tsconfig` below and the handler's `require("../../../lib/placement-jobs")`
+      // both reach outside infra/ into the app root. Pointing depsLockFilePath/projectRoot
+      // at the app root instead mounts the whole app into the bundling
+      // container so both resolve. See handler.ts's file header.
+      depsLockFilePath: path.join(appRoot, "package-lock.json"),
+      projectRoot: appRoot,
       timeout: cdk.Duration.minutes(5),
       memorySize: 512,
       environment: {
@@ -79,9 +88,17 @@ export class PlacementStack extends cdk.Stack {
         commandHooks: {
           beforeInstall: () => [],
           beforeBundling: () => [],
-          afterBundling: (_inputDir: string, outputDir: string): string[] => [
-            `node "${path.join(__dirname, "..", "..", "lambda", "placement", "copy-prisma-engine.js")}" "${outputDir}"`,
-          ],
+          // `inputDir` is the *container* path for the bundling mount (now
+          // projectRoot/appRoot — see above), not a host path, so the script
+          // must be addressed relative to that mount rather than via
+          // `__dirname` (a host path the container never has mounted).
+          afterBundling: (inputDir: string, outputDir: string): string[] => {
+            const scriptRelPath = path
+              .relative(appRoot, path.join(__dirname, "..", "..", "lambda", "placement", "copy-prisma-engine.js"))
+              .split(path.sep)
+              .join("/");
+            return [`node "${inputDir}/${scriptRelPath}" "${outputDir}"`];
+          },
         },
       },
     });
