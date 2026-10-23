@@ -21,7 +21,16 @@ const app = new cdk.App();
 // (flashlocalsocial, foutsdev-website) — AWS cost allocation tags are
 // case-sensitive, so a differently-cased key is invisible to Cost Explorer
 // until separately activated (lowercase "project" never was).
-cdk.Tags.of(app).add("Project", "UpSycle");
+//
+// AWS::AppRunner::Service is excluded: confirmed live (2026-10-23) that its
+// CloudFormation resource provider treats ANY tag change as
+// replacement-requiring, and replacement fails outright because the new
+// service would need the same ServiceName ("upsycle-web") as the still-live
+// one it's replacing ("Service with the provided name already exists").
+// That live service's tag was fixed once by hand instead (`aws apprunner
+// tag-resource`) — CDK must never attempt to manage its tags again, or every
+// future deploy touching this stack breaks the same way.
+cdk.Tags.of(app).add("Project", "UpSycle", { excludeResourceTypes: ["AWS::AppRunner::Service"] });
 
 const env: cdk.Environment = {
   account: process.env.CDK_DEFAULT_ACCOUNT,

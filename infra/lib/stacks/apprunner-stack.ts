@@ -149,6 +149,18 @@ export class AppRunnerStack extends cdk.Stack {
         healthyThreshold: 1,
         unhealthyThreshold: 5,
       },
+      // Pinned to exactly what's already live on this resource (set by the
+      // original app-level Tags aspect, back when it used lowercase
+      // "project") and deliberately excluded from that aspect now
+      // (bin/infra.ts) -- confirmed live (2026-10-23) that *any* Tags change
+      // on AWS::AppRunner::Service forces CloudFormation to replace it, and
+      // the replacement fails immediately on the ServiceName colliding with
+      // the still-live original ("Service with the provided name already
+      // exists: upsycle-web"). Must stay byte-identical to the live tag
+      // forever, or the next deploy breaks the same way. The actual
+      // "Project" cost-allocation tag was added to this one resource by hand
+      // instead (`aws apprunner tag-resource`), out of band from CDK.
+      tags: [{ key: "project", value: "UpSycle" }],
     });
 
     this.serviceUrl = this.service.attrServiceUrl;
