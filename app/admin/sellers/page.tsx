@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { prisma } from "@/lib/prisma";
+import { presignVettingPhotoUrl } from "@/lib/s3";
 import StatusBadge, { sellerStatusLabel } from "@/components/admin/StatusBadge";
 import SellerActionButtons from "@/components/admin/SellerActionButtons";
 import AdminDataTable, { type AdminTableColumn, type AdminTableRow } from "@/components/admin/AdminDataTable";
@@ -37,6 +38,17 @@ export default async function AdminSellersPage() {
 
   const pending = sellers.filter((s) => s.approvalStatus === "PENDING");
   const others = sellers.filter((s) => s.approvalStatus !== "PENDING");
+
+  // The seller-vetting S3 bucket blocks all public access (lib/s3.ts) — the
+  // plain URL stored on SellerSamplePhoto.url 403s if used directly as an
+  // <img> src, so each one is re-signed into a short-lived GET URL here,
+  // just for the pending applications actually being rendered below.
+  const pendingPhotos = pending.flatMap((s) => s.samplePhotos);
+  const photoViewUrls = new Map(
+    await Promise.all(
+      pendingPhotos.map(async (photo) => [photo.id, await presignVettingPhotoUrl(photo.url)] as const),
+    ),
+  );
 
   const sellerRows: AdminTableRow[] = others.map((seller) => ({
     key: seller.id,
@@ -147,8 +159,8 @@ export default async function AdminSellersPage() {
                   <div className="form-label mb-2">Sample Product Photos</div>
                   <div className="admin-photo-grid">
                     {seller.samplePhotos.map((photo) => (
-                      // eslint-disable-next-line @next/next/no-img-element -- external S3/placeholder URLs, no next/image domain config for these yet
-                      <img key={photo.id} src={photo.url} alt="Seller sample product" />
+                      // eslint-disable-next-line @next/next/no-img-element -- presigned S3 GET URLs, no next/image domain config for these yet
+                      <img key={photo.id} src={photoViewUrls.get(photo.id) ?? photo.url} alt="Seller sample product" />
                     ))}
                   </div>
                 </>

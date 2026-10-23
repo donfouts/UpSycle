@@ -7,7 +7,7 @@
 //    seller-vetting bucket (admin-review only, never public). fileUrl here
 //    is a plain (non-loadable) S3 URL — a future admin-review feature must
 //    re-sign a presigned GET from the stored key to actually view it.
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
 
@@ -69,4 +69,23 @@ export async function createPresignedUpload(
     : `https://${CDN_DOMAIN}/${key}`;
 
   return { uploadUrl, fileUrl, key };
+}
+
+/**
+ * Re-signs a stored vetting-bucket `fileUrl` (seller sample photos,
+ * proof-of-handcrafted) into a short-lived, browser-loadable GET URL — the
+ * bucket itself blocks all public access, so the plain URL stored in
+ * Postgres can't be used directly as an <img> src (see module doc above).
+ * Admin-review-only; never call this for product-photos URLs (those are
+ * already CDN-loadable).
+ */
+export async function presignVettingPhotoUrl(fileUrl: string): Promise<string> {
+  if (!VETTING_BUCKET) {
+    throw new Error("SELLER_VETTING_BUCKET_NAME is not configured");
+  }
+
+  const key = new URL(fileUrl).pathname.replace(/^\/+/, "");
+  const client = getClient();
+  const command = new GetObjectCommand({ Bucket: VETTING_BUCKET, Key: key });
+  return getSignedUrl(client, command, { expiresIn: 900 });
 }
