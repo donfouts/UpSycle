@@ -17,10 +17,14 @@ on modifies a real, billed, live environment — treat changes accordingly.
 
 ## Stacks
 
-All resources in every stack are tagged `project: UpSycle` (applied once via
-`cdk.Tags.of(app).add('project', 'UpSycle')` in `bin/infra.ts`, so it
+All resources in every stack are tagged `Project: UpSycle` (applied once via
+`cdk.Tags.of(app).add('Project', 'UpSycle')` in `bin/infra.ts`, so it
 propagates to every stack and every child construct automatically) so AWS Cost
-Explorer can filter and invoice by this tag. A few CloudFormation resource
+Explorer can filter and invoice by this tag — capital `Project` to match the
+cost allocation tag key already Active for this account's other projects
+(AWS cost allocation tags are case-sensitive; a lowercase `project` key was
+tried first but never activated, so it was invisible in Cost Explorer). A few
+CloudFormation resource
 types have no AWS-level tagging support at all (e.g. `AWS::Cognito::UserPoolClient`,
 `AWS::EC2::Route`, `AWS::S3::BucketPolicy`, CDK's internal
 `Custom::VpcRestrictDefaultSG` helper Lambda) — those are AWS/CDK-framework

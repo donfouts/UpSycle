@@ -16,8 +16,12 @@ const app = new cdk.App();
 // Every resource in every stack in this app MUST carry this tag so AWS Cost
 // Explorer can filter/invoice on it. Applying it at the App level (rather than
 // per-stack) guarantees it propagates to every stack and every child construct,
-// including ones added later.
-cdk.Tags.of(app).add("project", "UpSycle");
+// including ones added later. Capital "Project" to match the cost allocation
+// tag key this AWS account already has Active for its other projects
+// (flashlocalsocial, foutsdev-website) — AWS cost allocation tags are
+// case-sensitive, so a differently-cased key is invisible to Cost Explorer
+// until separately activated (lowercase "project" never was).
+cdk.Tags.of(app).add("Project", "UpSycle");
 
 const env: cdk.Environment = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
